@@ -1,0 +1,8 @@
+{
+  "permission": {
+    "external_directory": {
+      "E:\\Project\\*": "allow",
+      "E:\\ProgramFilesX86\\HBuilderX\\plugins\\*": "allow"
+    }
+  }
+}
