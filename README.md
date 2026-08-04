@@ -8,6 +8,7 @@
 agriculture/
 ├─ after/     NestJS REST API
 ├─ before/    Vue 3 + Pinia + Naive UI 管理端
+├─ desktop/   Electron + Vue 3 + NestJS + SQLite 离线桌面端
 ├─ terminal/  C++17 物联网数据采集终端
 └─ APP/       uni-app + Pinia 巡田移动端
 ```
@@ -15,10 +16,17 @@ agriculture/
 ## 核心功能
 
 - 农业驾驶舱：地块面积、任务、设备、告警、作物占比和近七日趋势
+- 经营组织：经营主体、农场、地块三级归属和启停约束
+- 生产周期：种植季、生产计划、农事实绩、执行成本和受控状态流转
 - 生产任务：新建农事任务、责任人分配、进度筛选和完工闭环
 - 农田档案：面积、位置、作物、生产状态、墒情和种植周期
 - 设备监控：环境遥测、在线状态、维护状态和告警确认
-- 农资库存：肥料、植保和灌溉耗材台账及低库存提示
+- 巡田问题：异常登记、责任分派、处理、复查和关闭
+- 农资库存：采购入库、生产领用、退料、盘点、变动流水和低库存提示
+- 采收追溯：采收批次、质检、销售、交付收款和全链追溯码
+- 合规经营：合同、证照文书、受控附件、到期提醒和跨层级归属校验
+- 运营安全：经营风险聚合、不可变审计日志、SQLite 完整性检查和本地备份
+- 纠错中心：按需打开独立桌面窗口、自动记录功能位置、问题处理和解决留痕
 - 移动巡田：任务处理、地块状态、异常设备和个人工作台
 - C++ 终端：跨平台模拟采集温湿度、墒情和光照并持续上报
 
@@ -48,6 +56,25 @@ npm run dev
 
 演示账号：`admin` / `admin123`。
 
+## 离线桌面端
+
+桌面端是当前功能最完整的本地部署入口。它会自动启动 NestJS 本地 API，使用 SQLite/WAL 持久化数据，并提供局域网和 BLE 连接测试入口。纠错中心不会在登录后自动弹出，需要时可通过顶部纠错图标或页面错误入口打开。
+
+```bash
+npm --prefix desktop install
+npm --prefix desktop/server install
+npm --prefix desktop/renderer install
+npm run dev:desktop
+```
+
+生成 Windows 安装包：
+
+```bash
+npm run build:desktop
+```
+
+详细说明和市场对标见 `desktop/README.md` 与 `desktop/docs/market-gap-and-offline-architecture.md`。
+
 ## 巡田 APP
 
 `APP` 可使用 HBuilderX 5.15 直接打开并运行，也可使用 CLI：
@@ -72,4 +99,4 @@ Windows 多配置生成器的可执行文件通常位于 `terminal/build/Release
 
 ## 数据说明
 
-当前后端使用进程内演示数据，便于无需数据库直接联调；重启服务后新增地块、任务状态和告警确认会恢复。生产部署时应将 `AgricultureService` 的内存集合替换为持久化仓储，并接入正式身份认证、审计日志和 HTTPS 设备密钥管理。
+`after/` 仍使用进程内演示数据，便于 Web 与 APP 快速联调；`desktop/server/` 使用 SQLite/WAL 持久化经营主体、农场、地块、种植季、计划实绩、采收销售、合同文书、任务问题、库存、纠错和遥测数据，并提供审计、完整性检查和手动备份。正式多用户部署仍需补齐用户表、角色权限、数据库加密、自动备份与恢复演练和局域网 TLS。

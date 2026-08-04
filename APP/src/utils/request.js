@@ -2,28 +2,25 @@ const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:310
 const TOKEN_KEY = 'agriculture_token'
 
 let unauthorizedHandler = null
-let redirecting = false
+let handlingUnauthorized = false
 
 export function setUnauthorizedHandler(handler) {
   unauthorizedHandler = handler
 }
 
 function handleUnauthorized() {
+  if (handlingUnauthorized) return
+  handlingUnauthorized = true
   uni.removeStorageSync(TOKEN_KEY)
   if (unauthorizedHandler) unauthorizedHandler()
-
-  if (!redirecting) {
-    redirecting = true
-    uni.reLaunch({
-      url: '/pages/login/index',
-      complete: () => {
-        redirecting = false
-      }
-    })
-  }
+  uni.reLaunch({ url: '/pages/login/index' })
 }
 
-export function request({ url, method = 'GET', data, header = {} }) {
+export function resetUnauthorizedState() {
+  handlingUnauthorized = false
+}
+
+export function request({ url, method = 'GET', data, header = {}, handleAuthFailure = true }) {
   const token = uni.getStorageSync(TOKEN_KEY)
 
   return new Promise((resolve, reject) => {
@@ -44,8 +41,12 @@ export function request({ url, method = 'GET', data, header = {} }) {
           return
         }
 
-        if (statusCode === 401) handleUnauthorized()
-        reject(new Error(responseData?.message || `请求失败（${statusCode}）`))
+        const error = new Error(responseData?.message || `请求失败（${statusCode}）`)
+        if (statusCode === 401 && handleAuthFailure) {
+          error.name = 'UnauthorizedError'
+          handleUnauthorized()
+        }
+        reject(error)
       },
       fail(error) {
         reject(new Error(error.errMsg || '网络连接失败'))

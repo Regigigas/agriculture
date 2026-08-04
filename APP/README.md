@@ -8,6 +8,7 @@
 - 首页天气环境、今日概览、待办任务和异常设备
 - 任务状态筛选与确认完工
 - 地块作物、面积、生长阶段和状态展示
+- 采购单创建、状态筛选、到货确认和库存联动
 - 账号信息与退出登录
 
 ## 接口
@@ -26,6 +27,10 @@ VITE_API_BASE_URL=http://localhost:3100/api
 - `GET /tasks`
 - `GET /devices`
 - `PATCH /tasks/:id/status`
+- `GET /inventory`
+- `GET /purchases`
+- `POST /purchases`
+- `PATCH /purchases/:id/receive`
 
 请求自动附加 `Authorization: Bearer <token>`。登录接口可直接返回 `{ token, user }`，也可放在 `data` 字段中；列表接口可直接返回数组，也可使用对应的 `fields`、`tasks`、`devices` 或 `items` 字段。
 

@@ -52,5 +52,7 @@ Authorization: Bearer agri-demo-token
 | GET | `/api/alerts` | 查询告警 |
 | PATCH | `/api/alerts/:id/ack` | 确认告警 |
 | GET | `/api/inventory` | 查询库存 |
+| GET / POST | `/api/purchases` | 查询或新建采购单 |
+| PATCH | `/api/purchases/:id/receive` | 确认采购到货并增加库存 |
 
-新建田块需要 `name`、`crop`、`area`、`location`、`status`、`plantedAt`、`expectedHarvestAt`、`soilMoisture`、`manager`。新建任务需要 `title`、`fieldId`、`assignee`、`dueDate`、`priority`，可选 `description`。状态更新请求体为 `{ "status": "pending|in_progress|completed" }`。遥测请求体包含数值型 `temperature`、`humidity`、`soilMoisture`、`light`。
+新建田块需要 `name`、`crop`、`area`、`location`、`status`、`plantedAt`、`expectedHarvestAt`、`soilMoisture`、`manager`。新建任务需要 `title`、`fieldId`、`assignee`、`dueDate`、`priority`，可选 `description`。新建采购单需要 `inventoryItemId`、`quantity`、`unitPrice`、`supplier`、`expectedAt`、`buyer`，可选 `notes`；到货请求体为 `{ "operator": "经办人" }`，重复确认不会再次增加库存。状态更新请求体为 `{ "status": "pending|in_progress|completed" }`。遥测请求体包含数值型 `temperature`、`humidity`、`soilMoisture`、`light`。

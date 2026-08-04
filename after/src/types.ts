@@ -1,6 +1,7 @@
 export type FieldStatus = 'healthy' | 'attention' | 'fallow';
 export type TaskStatus = 'pending' | 'in_progress' | 'completed';
 export type TaskPriority = 'low' | 'medium' | 'high';
+export type PurchaseStatus = 'pending' | 'received';
 
 export interface User {
   id: string;
@@ -76,6 +77,25 @@ export interface InventoryItem {
   minimumStock: number;
   location: string;
   updatedAt: string;
+}
+
+export interface PurchaseOrder {
+  id: string;
+  orderNo: string;
+  inventoryItemId: string;
+  itemName: string;
+  quantity: number;
+  unit: string;
+  unitPrice: number;
+  amount: number;
+  supplier: string;
+  expectedAt: string;
+  buyer: string;
+  notes: string;
+  status: PurchaseStatus;
+  createdAt: string;
+  updatedAt: string;
+  receivedAt: string | null;
 }
 
 export interface Activity {

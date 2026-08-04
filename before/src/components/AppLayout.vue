@@ -2,7 +2,7 @@
 import { computed, h, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { NAvatar, NButton, NDrawer, NDrawerContent, NDropdown, NIcon, NMenu, type MenuOption } from 'naive-ui'
-import { Bell, Boxes, ClipboardList, Gauge, LogOut, Menu, RadioTower, Sprout, UserRound } from '@lucide/vue'
+import { Bell, Boxes, ClipboardList, Gauge, LogOut, Menu, RadioTower, ShoppingCart, Sprout, UserRound } from '@lucide/vue'
 import { useAuthStore } from '@/stores/auth'
 
 const route = useRoute()
@@ -17,6 +17,7 @@ const menuOptions: MenuOption[] = [
   { label: '农田档案', key: '/fields', icon: icon(Sprout) },
   { label: '设备监控', key: '/devices', icon: icon(RadioTower) },
   { label: '农资库存', key: '/inventory', icon: icon(Boxes) },
+  { label: '采购管理', key: '/purchases', icon: icon(ShoppingCart) },
 ]
 const activeKey = computed(() => route.path)
 const pageTitle = computed(() => String(route.meta.title || '农业管理'))

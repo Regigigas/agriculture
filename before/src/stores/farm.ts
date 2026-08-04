@@ -1,7 +1,7 @@
 import { reactive, ref } from 'vue'
 import { defineStore } from 'pinia'
 import { request } from '@/api/client'
-import type { Alert, CreateFieldInput, CreateTaskInput, DashboardData, Device, FarmTask, Field, InventoryItem, TaskStatus } from '@/types'
+import type { Alert, CreateFieldInput, CreatePurchaseInput, CreateTaskInput, DashboardData, Device, FarmTask, Field, InventoryItem, PurchaseOrder, TaskStatus } from '@/types'
 
 export const useFarmStore = defineStore('farm', () => {
   const dashboard = ref<DashboardData>({})
@@ -10,6 +10,7 @@ export const useFarmStore = defineStore('farm', () => {
   const devices = ref<Device[]>([])
   const alerts = ref<Alert[]>([])
   const inventory = ref<InventoryItem[]>([])
+  const purchases = ref<PurchaseOrder[]>([])
   const loading = reactive<Record<string, boolean>>({})
   const errors = reactive<Record<string, string>>({})
 
@@ -32,6 +33,7 @@ export const useFarmStore = defineStore('farm', () => {
   const loadDevices = () => run('devices', async () => { devices.value = await request<Device[]>('/devices') })
   const loadAlerts = () => run('alerts', async () => { alerts.value = await request<Alert[]>('/alerts') })
   const loadInventory = () => run('inventory', async () => { inventory.value = await request<InventoryItem[]>('/inventory') })
+  const loadPurchases = () => run('purchases', async () => { purchases.value = await request<PurchaseOrder[]>('/purchases') })
 
   const createField = (input: CreateFieldInput) => run('fieldMutation', async () => {
     const created = await request<Field | undefined>('/fields', { method: 'POST', body: JSON.stringify(input) })
@@ -59,9 +61,23 @@ export const useFarmStore = defineStore('farm', () => {
     if (alert) alert.acknowledged = true
   })
 
+  const createPurchase = (input: CreatePurchaseInput) => run('purchaseMutation', async () => {
+    const created = await request<PurchaseOrder>('/purchases', { method: 'POST', body: JSON.stringify(input) })
+    purchases.value.unshift(created)
+    return created
+  })
+
+  const receivePurchase = (id: string | number, operator: string) => run('purchaseMutation', async () => {
+    const updated = await request<PurchaseOrder>(`/purchases/${id}/receive`, { method: 'PATCH', body: JSON.stringify({ operator }) })
+    const index = purchases.value.findIndex((purchase) => purchase.id === id)
+    if (index >= 0) purchases.value[index] = updated
+    await Promise.allSettled([loadInventory()])
+    return updated
+  })
+
   return {
-    dashboard, fields, tasks, devices, alerts, inventory, loading, errors,
-    loadDashboard, loadFields, loadTasks, loadDevices, loadAlerts, loadInventory,
-    createField, createTask, updateTaskStatus, acknowledgeAlert,
+    dashboard, fields, tasks, devices, alerts, inventory, purchases, loading, errors,
+    loadDashboard, loadFields, loadTasks, loadDevices, loadAlerts, loadInventory, loadPurchases,
+    createField, createTask, updateTaskStatus, acknowledgeAlert, createPurchase, receivePurchase,
   }
 })

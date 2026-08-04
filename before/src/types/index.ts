@@ -1,5 +1,6 @@
 export type TaskStatus = 'pending' | 'in_progress' | 'completed'
 export type TaskPriority = 'low' | 'medium' | 'high'
+export type PurchaseStatus = 'pending' | 'received'
 
 export interface User {
   id?: string | number
@@ -76,6 +77,35 @@ export interface InventoryItem {
   minimumStock: number
   location: string
   updatedAt: string
+}
+
+export interface PurchaseOrder {
+  id: string | number
+  orderNo: string
+  inventoryItemId: string | number
+  itemName: string
+  quantity: number
+  unit: string
+  unitPrice: number
+  amount: number
+  supplier: string
+  expectedAt: string
+  buyer: string
+  notes: string
+  status: PurchaseStatus
+  createdAt: string
+  updatedAt: string
+  receivedAt: string | null
+}
+
+export interface CreatePurchaseInput {
+  inventoryItemId: string | number
+  quantity: number
+  unitPrice: number
+  supplier: string
+  expectedAt: string
+  buyer: string
+  notes?: string
 }
 
 export interface DashboardData {

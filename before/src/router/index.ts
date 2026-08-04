@@ -17,6 +17,7 @@ const router = createRouter({
         { path: 'fields', name: 'fields', component: () => import('@/views/FieldsView.vue'), meta: { title: '农田档案' } },
         { path: 'devices', name: 'devices', component: () => import('@/views/DevicesView.vue'), meta: { title: '设备监控' } },
         { path: 'inventory', name: 'inventory', component: () => import('@/views/InventoryView.vue'), meta: { title: '农资库存' } },
+        { path: 'purchases', name: 'purchases', component: () => import('@/views/PurchasesView.vue'), meta: { title: '采购管理' } },
       ],
     },
     { path: '/:pathMatch(.*)*', redirect: '/dashboard' },

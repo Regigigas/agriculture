@@ -1,0 +1,9 @@
+node_modules/
+renderer/node_modules/
+server/node_modules/
+renderer/dist/
+server/dist/
+server/data/
+release/
+*.tsbuildinfo
+*.log

@@ -68,7 +68,7 @@ async function refresh() {
   try {
     await farmStore.loadFields()
   } catch (error) {
-    uni.showToast({ title: error.message || '地块加载失败', icon: 'none' })
+    if (error.name !== 'UnauthorizedError') uni.showToast({ title: error.message || '地块加载失败', icon: 'none' })
   }
 }
 

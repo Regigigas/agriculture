@@ -114,7 +114,7 @@ async function refresh() {
   try {
     await farmStore.loadHome()
   } catch (error) {
-    uni.showToast({ title: error.message || '数据加载失败', icon: 'none' })
+    if (error.name !== 'UnauthorizedError') uni.showToast({ title: error.message || '数据加载失败', icon: 'none' })
   }
 }
 

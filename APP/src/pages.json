@@ -28,6 +28,13 @@
       }
     },
     {
+      "path": "pages/purchases/index",
+      "style": {
+        "navigationBarTitleText": "采购管理",
+        "enablePullDownRefresh": true
+      }
+    },
+    {
       "path": "pages/profile/index",
       "style": {
         "navigationBarTitleText": "我的"
@@ -51,6 +58,10 @@
       {
         "pagePath": "pages/fields/index",
         "text": "地块"
+      },
+      {
+        "pagePath": "pages/purchases/index",
+        "text": "采购"
       },
       {
         "pagePath": "pages/profile/index",

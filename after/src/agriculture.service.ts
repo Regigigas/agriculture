@@ -7,6 +7,7 @@ import {
   Field,
   FieldStatus,
   InventoryItem,
+  PurchaseOrder,
   Task,
   TaskPriority,
   TaskStatus,
@@ -50,6 +51,10 @@ export class AgricultureService {
     { id: 'inventory-003', name: '滴灌带', category: '灌溉耗材', quantity: 48, unit: '卷', minimumStock: 20, location: '农资库 B-06', updatedAt: iso('2026-07-28T09:40:00+08:00') },
     { id: 'inventory-004', name: '黄色粘虫板', category: '植保物资', quantity: 320, unit: '张', minimumStock: 100, location: '植保库 C-02', updatedAt: iso('2026-08-01T13:20:00+08:00') },
     { id: 'inventory-005', name: '土壤采样袋', category: '检测耗材', quantity: 65, unit: '个', minimumStock: 50, location: '实验室储物柜', updatedAt: iso('2026-08-03T17:10:00+08:00') },
+  ];
+
+  private readonly purchases: PurchaseOrder[] = [
+    { id: 'purchase-001', orderNo: 'PO-2026-0001', inventoryItemId: 'inventory-002', itemName: '番茄专用水溶肥', quantity: 120, unit: 'kg', unitPrice: 6.8, amount: 816, supplier: '绿禾农资有限公司', expectedAt: '2026-08-07', buyer: '陈静', notes: '温室膨果期补货', status: 'pending', createdAt: iso('2026-08-03T14:30:00+08:00'), updatedAt: iso('2026-08-03T14:30:00+08:00'), receivedAt: null },
   ];
 
   private readonly activities: Activity[] = [
@@ -156,6 +161,15 @@ export class AgricultureService {
     const task = this.tasks.find((item) => item.id === id);
     if (!task) throw new NotFoundException(`任务 ${id} 不存在`);
     const status = this.enumValue<TaskStatus>(this.objectBody(body), 'status', ['pending', 'in_progress', 'completed']);
+    if (status === task.status) return task;
+    const transitions: Record<TaskStatus, readonly TaskStatus[]> = {
+      pending: ['in_progress'],
+      in_progress: ['completed'],
+      completed: [],
+    };
+    if (!transitions[task.status].includes(status)) {
+      throw new HttpException(`任务不能从 ${task.status} 变更为 ${status}`, HttpStatus.CONFLICT);
+    }
     task.status = status;
     task.completedAt = status === 'completed' ? new Date().toISOString() : null;
     this.addActivity('task', `任务“${task.title}”状态更新为 ${status}`);
@@ -208,6 +222,59 @@ export class AgricultureService {
     return this.inventory;
   }
 
+  getPurchases(): PurchaseOrder[] {
+    return [...this.purchases].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+
+  createPurchase(body: unknown): PurchaseOrder {
+    const input = this.objectBody(body);
+    const inventoryItemId = this.requiredString(input, 'inventoryItemId');
+    const item = this.inventory.find((candidate) => candidate.id === inventoryItemId);
+    if (!item) throw new NotFoundException(`库存项目 ${inventoryItemId} 不存在`);
+    const quantity = this.roundQuantity(this.numberInRange(input, 'quantity', 0.01, 1000000));
+    const unitPrice = this.roundMoney(this.numberInRange(input, 'unitPrice', 0, 1000000));
+    const now = new Date().toISOString();
+    const purchase: PurchaseOrder = {
+      id: randomUUID(),
+      orderNo: `PO-${new Date().getFullYear()}-${String(this.purchases.length + 1).padStart(4, '0')}`,
+      inventoryItemId: item.id,
+      itemName: item.name,
+      quantity,
+      unit: item.unit,
+      unitPrice,
+      amount: this.roundMoney(quantity * unitPrice),
+      supplier: this.limitedRequiredString(input, 'supplier', 100),
+      expectedAt: this.dateString(input, 'expectedAt'),
+      buyer: this.limitedRequiredString(input, 'buyer', 40),
+      notes: this.limitedOptionalString(input, 'notes', 300),
+      status: 'pending',
+      createdAt: now,
+      updatedAt: now,
+      receivedAt: null,
+    };
+    this.purchases.unshift(purchase);
+    this.addActivity('purchase', `创建采购单 ${purchase.orderNo}，采购“${purchase.itemName}” ${purchase.quantity} ${purchase.unit}`);
+    return purchase;
+  }
+
+  receivePurchase(id: string, body: unknown): PurchaseOrder {
+    const purchase = this.purchases.find((candidate) => candidate.id === id);
+    if (!purchase) throw new NotFoundException(`采购单 ${id} 不存在`);
+    if (purchase.status === 'received') return purchase;
+    const input = this.objectBody(body);
+    const operator = this.limitedRequiredString(input, 'operator', 40);
+    const item = this.inventory.find((candidate) => candidate.id === purchase.inventoryItemId);
+    if (!item) throw new NotFoundException(`库存项目 ${purchase.inventoryItemId} 不存在`);
+    const now = new Date().toISOString();
+    item.quantity = this.roundQuantity(item.quantity + purchase.quantity);
+    item.updatedAt = now;
+    purchase.status = 'received';
+    purchase.updatedAt = now;
+    purchase.receivedAt = now;
+    this.addActivity('purchase', `${operator}确认采购单 ${purchase.orderNo} 到货并入库`);
+    return purchase;
+  }
+
   private requireField(id: string): void {
     if (!this.fields.some((field) => field.id === id)) {
       throw new NotFoundException(`田块 ${id} 不存在`);
@@ -242,6 +309,22 @@ export class AgricultureService {
     return value.trim();
   }
 
+  private limitedRequiredString(input: Record<string, unknown>, key: string, maxLength: number): string {
+    const value = this.requiredString(input, key);
+    if (value.length > maxLength) {
+      throw new HttpException(`${key} 长度不能超过 ${maxLength}`, HttpStatus.BAD_REQUEST);
+    }
+    return value;
+  }
+
+  private limitedOptionalString(input: Record<string, unknown>, key: string, maxLength: number): string {
+    const value = this.optionalString(input, key);
+    if (value.length > maxLength) {
+      throw new HttpException(`${key} 长度不能超过 ${maxLength}`, HttpStatus.BAD_REQUEST);
+    }
+    return value;
+  }
+
   private numberInRange(input: Record<string, unknown>, key: string, min: number, max: number): number {
     const value = input[key];
     if (typeof value !== 'number' || !Number.isFinite(value) || value < min || value > max) {
@@ -260,9 +343,23 @@ export class AgricultureService {
 
   private dateString(input: Record<string, unknown>, key: string): string {
     const value = this.requiredString(input, key);
-    if (Number.isNaN(Date.parse(value))) {
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+    if (!match) throw new HttpException(`${key} 必须是 YYYY-MM-DD 格式的有效日期`, HttpStatus.BAD_REQUEST);
+    const year = Number(match[1]);
+    const month = Number(match[2]);
+    const day = Number(match[3]);
+    const parsed = new Date(Date.UTC(year, month - 1, day));
+    if (parsed.getUTCFullYear() !== year || parsed.getUTCMonth() !== month - 1 || parsed.getUTCDate() !== day) {
       throw new HttpException(`${key} 必须是有效日期`, HttpStatus.BAD_REQUEST);
     }
     return value;
+  }
+
+  private roundQuantity(value: number): number {
+    return Math.round((value + Number.EPSILON) * 10000) / 10000;
+  }
+
+  private roundMoney(value: number): number {
+    return Math.round((value + Number.EPSILON) * 100) / 100;
   }
 }

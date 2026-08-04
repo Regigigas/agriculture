@@ -29,7 +29,7 @@
     <view class="surface info-list">
       <view class="info-row">
         <text class="info-label">服务状态</text>
-        <text class="service-state">正常</text>
+        <text class="service-state" :class="{ unavailable: serviceStatus === '不可用' }">{{ serviceStatus }}</text>
       </view>
       <view class="info-row">
         <text class="info-label">当前版本</text>
@@ -42,12 +42,30 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
+import { getHealth } from '../../api/farm'
 import { useAuthStore } from '../../store/auth'
 
 const authStore = useAuthStore()
+const serviceStatus = ref('未检测')
 const user = computed(() => authStore.user || {})
 const avatarText = computed(() => (user.value.name || user.value.username || '农').slice(0, 1))
+
+onShow(async () => {
+  authStore.restoreSession()
+  if (!authStore.isAuthenticated) {
+    uni.reLaunch({ url: '/pages/login/index' })
+    return
+  }
+  serviceStatus.value = '检测中'
+  try {
+    await getHealth()
+    serviceStatus.value = '正常'
+  } catch {
+    serviceStatus.value = '不可用'
+  }
+})
 
 function confirmLogout() {
   uni.showModal({
@@ -166,6 +184,10 @@ function confirmLogout() {
   color: #287044;
   font-size: 25rpx;
   font-weight: 700;
+}
+
+.service-state.unavailable {
+  color: #a33f38;
 }
 
 .logout-button {

@@ -16,6 +16,17 @@
       "delay": 0
     },
     "distribute": {
+      "icons": {
+        "android": {
+          "hdpi": "static/icons/app-icon-72.png",
+          "xhdpi": "static/icons/app-icon-96.png",
+          "xxhdpi": "static/icons/app-icon-144.png",
+          "xxxhdpi": "static/icons/app-icon-192.png"
+        },
+        "ios": {
+          "appstore": "static/icons/app-icon-1024.png"
+        }
+      },
       "android": {
         "permissions": [
           "<uses-permission android:name=\"android.permission.INTERNET\" />",

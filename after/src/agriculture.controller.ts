@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Headers, Param, Patch, Post } from '@nestjs/common';
 import { AgricultureService } from './agriculture.service';
-import { Alert, Device, Field, InventoryItem, Task } from './types';
+import { Alert, Device, Field, InventoryItem, PurchaseOrder, Task } from './types';
 import { Public } from './auth/public.decorator';
 
 @Controller()
@@ -65,5 +65,20 @@ export class AgricultureController {
   @Get('inventory')
   inventory(): InventoryItem[] {
     return this.service.getInventory();
+  }
+
+  @Get('purchases')
+  purchases(): PurchaseOrder[] {
+    return this.service.getPurchases();
+  }
+
+  @Post('purchases')
+  createPurchase(@Body() body: unknown): PurchaseOrder {
+    return this.service.createPurchase(body);
+  }
+
+  @Patch('purchases/:id/receive')
+  receivePurchase(@Param('id') id: string, @Body() body: unknown): PurchaseOrder {
+    return this.service.receivePurchase(id, body);
   }
 }

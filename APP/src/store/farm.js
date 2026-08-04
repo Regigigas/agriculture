@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { getDashboard, getDevices, getFields, getTasks, updateTaskStatus } from '../api/farm'
+import { createPurchase, getDashboard, getDevices, getFields, getInventory, getPurchases, getTasks, receivePurchase, updateTaskStatus } from '../api/farm'
 
 function payloadOf(result) {
   return result?.data ?? result
@@ -17,8 +17,14 @@ export const useFarmStore = defineStore('farm', {
     fields: [],
     tasks: [],
     devices: [],
+    inventory: [],
+    purchases: [],
     loading: false,
-    updatingTaskId: null
+    updatingTaskId: null,
+    purchasesLoading: false,
+    purchaseSubmitting: false,
+    receivingPurchaseId: null,
+    purchaseSyncError: ''
   }),
   getters: {
     abnormalDevices: (state) => state.devices.filter((device) =>
@@ -59,14 +65,53 @@ export const useFarmStore = defineStore('farm', {
         this.loading = false
       }
     },
-    async completeTask(task) {
+    async loadPurchases() {
+      this.purchasesLoading = true
+      this.purchaseSyncError = ''
+      try {
+        const [purchaseResult, inventoryResult] = await Promise.all([getPurchases(), getInventory()])
+        this.purchases = listOf(purchaseResult, 'purchases')
+        this.inventory = listOf(inventoryResult, 'inventory')
+      } finally {
+        this.purchasesLoading = false
+      }
+    },
+    async createPurchase(input) {
+      this.purchaseSubmitting = true
+      try {
+        const created = payloadOf(await createPurchase(input))
+        if (created?.id) this.purchases.unshift(created)
+        else await this.loadPurchases()
+        return created
+      } finally {
+        this.purchaseSubmitting = false
+      }
+    },
+    async receivePurchase(order, operator) {
+      this.receivingPurchaseId = order.id
+      this.purchaseSyncError = ''
+      try {
+        const updated = payloadOf(await receivePurchase(order.id, operator))
+        const index = this.purchases.findIndex((item) => item.id === order.id)
+        if (index !== -1 && updated?.id) this.purchases[index] = updated
+        try {
+          this.inventory = listOf(await getInventory(), 'inventory')
+        } catch {
+          this.purchaseSyncError = '到货已确认，但库存刷新失败，请下拉刷新'
+        }
+        return updated
+      } finally {
+        this.receivingPurchaseId = null
+      }
+    },
+    async updateTask(task, status) {
       this.updatingTaskId = task.id
       try {
-        const result = await updateTaskStatus(task.id, 'completed')
+        const result = await updateTaskStatus(task.id, status)
         const updated = payloadOf(result)
         const index = this.tasks.findIndex((item) => item.id === task.id)
         if (index !== -1) {
-          this.tasks[index] = updated?.id ? updated : { ...this.tasks[index], status: 'completed' }
+          this.tasks[index] = updated?.id ? updated : { ...this.tasks[index], status }
         }
       } finally {
         this.updatingTaskId = null

@@ -4,6 +4,7 @@ export function login(credentials) {
   return request({
     url: '/auth/login',
     method: 'POST',
-    data: credentials
+    data: credentials,
+    handleAuthFailure: false
   })
 }

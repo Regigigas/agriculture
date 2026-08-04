@@ -47,9 +47,9 @@
           class="complete-button"
           :loading="farmStore.updatingTaskId === task.id"
           :disabled="farmStore.updatingTaskId !== null"
-          @click="confirmComplete(task)"
+          @click="confirmAdvance(task)"
         >
-          确认完工
+          {{ normalizeStatus(task.status) === 'pending' ? '开始任务' : '确认完工' }}
         </button>
       </view>
       <view v-if="!filteredTasks.length" class="surface empty-state">当前筛选下暂无任务</view>
@@ -77,9 +77,7 @@ const filteredTasks = computed(() => activeFilter.value === 'all'
 )
 const activeLabel = computed(() => filters.find((item) => item.value === activeFilter.value)?.label)
 
-onShow(async () => {
-  await Promise.all([refresh(), farmStore.fields.length ? Promise.resolve() : farmStore.loadFields()])
-})
+onShow(refresh)
 onPullDownRefresh(async () => {
   await refresh()
   uni.stopPullDownRefresh()
@@ -87,9 +85,9 @@ onPullDownRefresh(async () => {
 
 async function refresh() {
   try {
-    await farmStore.loadTasks()
+    await Promise.all([farmStore.loadTasks(), farmStore.fields.length ? Promise.resolve() : farmStore.loadFields()])
   } catch (error) {
-    uni.showToast({ title: error.message || '任务加载失败', icon: 'none' })
+    if (error.name !== 'UnauthorizedError') uni.showToast({ title: error.message || '任务加载失败', icon: 'none' })
   }
 }
 
@@ -118,18 +116,20 @@ function countByStatus(status) {
   return farmStore.tasks.filter((task) => normalizeStatus(task.status) === status).length
 }
 
-function confirmComplete(task) {
+function confirmAdvance(task) {
+  const nextStatus = normalizeStatus(task.status) === 'pending' ? 'in_progress' : 'completed'
+  const completing = nextStatus === 'completed'
   uni.showModal({
-    title: '确认完工',
-    content: `确认“${task.title || task.name}”已经完成？`,
+    title: completing ? '确认完工' : '开始任务',
+    content: completing ? `确认“${task.title || task.name}”已经完成？` : `确认开始执行“${task.title || task.name}”？`,
     confirmColor: '#21613c',
     success: async ({ confirm }) => {
       if (!confirm) return
       try {
-        await farmStore.completeTask(task)
-        uni.showToast({ title: '任务已完成', icon: 'success' })
+        await farmStore.updateTask(task, nextStatus)
+        uni.showToast({ title: completing ? '任务已完成' : '任务已开始', icon: 'success' })
       } catch (error) {
-        uni.showToast({ title: error.message || '更新失败', icon: 'none' })
+        if (error.name !== 'UnauthorizedError') uni.showToast({ title: error.message || '更新失败', icon: 'none' })
       }
     }
   })

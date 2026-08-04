@@ -6,8 +6,11 @@
     "dev:api": "npm --prefix after run start:dev",
     "dev:web": "npm --prefix before run dev",
     "dev:app": "npm --prefix APP run dev:h5",
+    "dev:desktop": "npm --prefix desktop run dev",
     "build:api": "npm --prefix after run build",
     "build:web": "npm --prefix before run build",
-    "build:app": "npm --prefix APP run build:h5"
+    "build:app": "npm --prefix APP run build:h5",
+    "build:desktop": "npm --prefix desktop run build",
+    "pack:desktop": "npm --prefix desktop run pack"
   }
 }

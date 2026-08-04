@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+  <title id="title">丰域农业应用图标</title>
+  <desc id="desc">深绿色底面上的金色田垄与新芽</desc>
+  <rect width="1024" height="1024" fill="#173f2a" />
+  <rect x="56" y="56" width="912" height="912" rx="208" fill="#245839" stroke="#4f765d" stroke-width="6" />
+
+  <path d="M170 824 C278 700 394 622 512 574" fill="none" stroke="#f2c55c" stroke-width="72" stroke-linecap="round" />
+  <path d="M512 864 C512 752 512 652 512 574" fill="none" stroke="#e9f1e9" stroke-width="66" stroke-linecap="round" />
+  <path d="M854 824 C746 700 630 622 512 574" fill="none" stroke="#80a88d" stroke-width="72" stroke-linecap="round" />
+
+  <path d="M512 588 C512 512 513 445 518 382" fill="none" stroke="#e9f1e9" stroke-width="42" stroke-linecap="round" />
+  <path d="M491 473 C405 469 342 409 326 309 C423 304 491 354 514 440 C519 458 509 473 491 473 Z" fill="#80a88d" />
+  <path d="M535 425 C555 329 634 270 742 276 C722 379 648 443 540 459 C527 452 525 440 535 425 Z" fill="#f2c55c" />
+</svg>

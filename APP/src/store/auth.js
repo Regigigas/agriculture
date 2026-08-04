@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { login } from '../api/auth'
-import { TOKEN_KEY } from '../utils/request'
+import { useFarmStore } from './farm'
+import { resetUnauthorizedState, TOKEN_KEY } from '../utils/request'
 
 const USER_KEY = 'agriculture_user'
 
@@ -30,6 +31,7 @@ export const useAuthStore = defineStore('auth', {
         this.user = payload.user || null
         uni.setStorageSync(TOKEN_KEY, this.token)
         uni.setStorageSync(USER_KEY, this.user)
+        resetUnauthorizedState()
       } finally {
         this.loggingIn = false
       }
@@ -39,6 +41,7 @@ export const useAuthStore = defineStore('auth', {
       this.user = null
       uni.removeStorageSync(TOKEN_KEY)
       uni.removeStorageSync(USER_KEY)
+      useFarmStore().$reset()
     },
     expireSession() {
       this.clearSession()
