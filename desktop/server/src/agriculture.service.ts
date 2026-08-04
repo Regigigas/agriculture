@@ -92,6 +92,10 @@ export class AgricultureService {
   ];
 
   constructor(private readonly database: LocalDatabase) {
+    this.reloadFromDatabase();
+  }
+
+  reloadFromDatabase(): void {
     this.fields = this.database.loadCollection('fields', this.fields);
     for (const field of this.fields) {
       if (!field.farmId) {

@@ -6,9 +6,9 @@
 
 ```text
 agriculture/
-├─ after/     NestJS REST API
-├─ before/    Vue 3 + Pinia + Naive UI 管理端
-├─ desktop/   Electron + Vue 3 + NestJS + SQLite 离线桌面端
+├─ after/     NestJS 线上增量同步与 REST API
+├─ before/    Vue 3 管理端源码（浏览器构建，不再作为桌面发行入口）
+├─ desktop/   前端 Electron 发行工程 + NestJS + SQLite 离线服务
 ├─ terminal/  C++17 物联网数据采集终端
 └─ APP/       uni-app + Pinia 巡田移动端
 ```
@@ -32,7 +32,7 @@ agriculture/
 
 ## 快速启动
 
-环境要求：Node.js 20+、npm 10+。C++ 终端需要 CMake 3.16+ 和支持 C++17 的编译器。
+环境要求：Node.js 22+、npm 10+。C++ 终端需要 CMake 3.16+ 和支持 C++17 的编译器。
 
 ```bash
 cd after
@@ -58,7 +58,7 @@ npm run dev
 
 ## 离线桌面端
 
-桌面端是当前功能最完整的本地部署入口。它会自动启动 NestJS 本地 API，使用 SQLite/WAL 持久化数据，并提供局域网和 BLE 连接测试入口。纠错中心不会在登录后自动弹出，需要时可通过顶部纠错图标或页面错误入口打开。
+桌面端是 `before` 前端的正式交付形态，也是当前功能最完整的本地入口。它会自动启动 NestJS 本地 API，使用 SQLite/WAL 持久化数据，并提供局域网、BLE 和云端增量同步入口。断网时写入进入本地 outbox，联网后按云端游标同步；并发版本冲突在“连接中心”选择保留本机或采用云端。纠错中心不会在登录后自动弹出，需要时可通过顶部纠错图标或页面错误入口打开。
 
 ```bash
 npm --prefix desktop install
@@ -97,6 +97,14 @@ terminal/build/agri_terminal --once
 
 Windows 多配置生成器的可执行文件通常位于 `terminal/build/Release/`。默认设备 `DEV-001` 已在后端注册；终端每 5 秒上报一次，也可通过 `--host`、`--port`、`--device`、`--interval` 和 `--once` 调整。
 
-## 数据说明
+## 同步与数据说明
 
-`after/` 仍使用进程内演示数据，便于 Web 与 APP 快速联调；`desktop/server/` 使用 SQLite/WAL 持久化经营主体、农场、地块、种植季、计划实绩、采收销售、合同文书、任务问题、库存、纠错和遥测数据，并提供审计、完整性检查和手动备份。正式多用户部署仍需补齐用户表、角色权限、数据库加密、自动备份与恢复演练和局域网 TLS。
+`after/` 使用 SQLite/WAL 持久化云端同步实体、变更游标和幂等回执；原有 REST 演示业务数据仍用于 Web 与 APP 联调。`desktop/server/` 持久化经营主体、农场、地块、种植季、计划实绩、采收销售、合同文书、任务问题、库存、纠错和遥测数据，并提供审计、完整性检查、手动备份和增量同步。合同与文书只同步结构化元数据，本机附件路径不会上传。
+
+当前 beta 面向单实例云服务。正式多用户部署仍需将云端同步库迁移至 PostgreSQL，并补齐租户隔离、用户角色、令牌轮换、对象存储、自动备份与恢复演练和公网 TLS。
+
+同步验收：
+
+```bash
+npm run verify:sync
+```

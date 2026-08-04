@@ -4,6 +4,8 @@ contextBridge.exposeInMainWorld('agricultureDesktop', Object.freeze({
   isDesktop: true,
   apiBaseUrl: process.env.AGRI_API_BASE_URL || 'http://127.0.0.1:3100/api',
   getLocalAdminPassword: () => ipcRenderer.invoke('local-admin-password'),
+  getCloudSyncConfig: () => ipcRenderer.invoke('cloud-sync-config'),
+  setCloudSyncConfig: (input) => ipcRenderer.invoke('set-cloud-sync-config', input),
   openCorrectionWindow: (contextRoute = '') => ipcRenderer.invoke('open-correction-window', contextRoute),
   selectManagedDocument: () => ipcRenderer.invoke('select-managed-document'),
   openManagedDocument: (filePath) => ipcRenderer.invoke('open-managed-document', filePath),

@@ -5,11 +5,16 @@ import { AgricultureService } from './agriculture.service';
 import { AuthController } from './auth/auth.controller';
 import { AuthGuard } from './auth/auth.guard';
 import { HealthController } from './health.controller';
+import { SyncController } from './sync.controller';
+import { SyncDatabase } from './sync-database';
+import { SyncService } from './sync.service';
 
 @Module({
-  controllers: [HealthController, AuthController, AgricultureController],
+  controllers: [HealthController, AuthController, AgricultureController, SyncController],
   providers: [
     AgricultureService,
+    SyncDatabase,
+    SyncService,
     {
       provide: APP_GUARD,
       useClass: AuthGuard,

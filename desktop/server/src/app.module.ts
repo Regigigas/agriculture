@@ -11,14 +11,17 @@ import { OperationsCenterService } from './operations-center.service';
 import { ProductionController } from './production.controller';
 import { ProductionService } from './production.service';
 import { SystemController } from './system.controller';
+import { SyncController } from './sync.controller';
+import { SyncService } from './sync.service';
 
 @Module({
-  controllers: [HealthController, AuthController, AgricultureController, ProductionController, OperationsCenterController, SystemController],
+  controllers: [HealthController, AuthController, AgricultureController, ProductionController, OperationsCenterController, SystemController, SyncController],
   providers: [
     LocalDatabase,
     AgricultureService,
     ProductionService,
     OperationsCenterService,
+    SyncService,
     {
       provide: APP_GUARD,
       useClass: AuthGuard,

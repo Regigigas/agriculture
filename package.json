@@ -1,6 +1,6 @@
 {
   "name": "agriculture-management-system",
-  "version": "1.0.0",
+  "version": "1.0.0-beta.1",
   "private": true,
   "scripts": {
     "dev:api": "npm --prefix after run start:dev",
@@ -11,6 +11,7 @@
     "build:web": "npm --prefix before run build",
     "build:app": "npm --prefix APP run build:h5",
     "build:desktop": "npm --prefix desktop run build",
-    "pack:desktop": "npm --prefix desktop run pack"
+    "pack:desktop": "npm --prefix desktop run pack",
+    "verify:sync": "npm run build:api && npm --prefix desktop/server run build && node scripts/verify-sync.cjs"
   }
 }

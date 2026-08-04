@@ -1,17 +1,17 @@
-# Agriculture Demo API
+# 丰域农业线上同步 API
 
-基于 NestJS 的农业管理演示后端。所有数据保存在进程内存中，服务重启后会恢复本项目内置的田块、任务、设备、告警和库存种子数据。
+基于 NestJS 的农业管理后端。`POST /api/sync/exchange` 使用 SQLite/WAL 持久化 Electron 客户端上传的实体、单调变更游标和幂等回执；原有 REST 演示接口仍使用进程内数据，便于 Web 与 APP 联调。
 
 ## 运行
 
-要求 Node.js 20 或更高版本。
+要求 Node.js 22 或更高版本。
 
 ```bash
 npm install
 npm run start:dev
 ```
 
-默认监听 `http://localhost:3100`，REST 前缀为 `/api`。环境变量可参考 `.env.example`；本项目不额外加载 `.env` 文件，生产启动时请由运行环境注入变量。
+默认监听 `http://localhost:3100`，REST 前缀为 `/api`。环境变量可参考 `.env.example`；本项目不额外加载 `.env` 文件，生产启动时请由运行环境注入变量。云端数据库默认位于当前目录的 `data/cloud-sync.db`，可通过 `AGRI_CLOUD_DATA_DIR` 指定持久卷。
 
 ```bash
 npm run build
@@ -54,5 +54,6 @@ Authorization: Bearer agri-demo-token
 | GET | `/api/inventory` | 查询库存 |
 | GET / POST | `/api/purchases` | 查询或新建采购单 |
 | PATCH | `/api/purchases/:id/receive` | 确认采购到货并增加库存 |
+| POST | `/api/sync/exchange` | 推送 outbox 事件并按游标拉取云端增量 |
 
 新建田块需要 `name`、`crop`、`area`、`location`、`status`、`plantedAt`、`expectedHarvestAt`、`soilMoisture`、`manager`。新建任务需要 `title`、`fieldId`、`assignee`、`dueDate`、`priority`，可选 `description`。新建采购单需要 `inventoryItemId`、`quantity`、`unitPrice`、`supplier`、`expectedAt`、`buyer`，可选 `notes`；到货请求体为 `{ "operator": "经办人" }`，重复确认不会再次增加库存。状态更新请求体为 `{ "status": "pending|in_progress|completed" }`。遥测请求体包含数值型 `temperature`、`humidity`、`soilMoisture`、`light`。

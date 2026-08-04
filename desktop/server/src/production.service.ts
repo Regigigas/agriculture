@@ -74,6 +74,10 @@ export class ProductionService {
     private readonly database: LocalDatabase,
     private readonly agriculture: AgricultureService,
   ) {
+    this.reloadFromDatabase();
+  }
+
+  reloadFromDatabase(): void {
     this.subjects = this.database.loadCollection('business_subjects', this.subjects);
     this.farms = this.database.loadCollection('farms', this.farms);
     this.cycles = this.database.loadCollection('crop_cycles', this.cycles);

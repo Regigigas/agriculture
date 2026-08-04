@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+import { SyncService } from './sync.service';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
@@ -36,12 +37,17 @@ async function bootstrap(): Promise<void> {
     };
   };
   utilityProcess.parentPort?.on('message', (event) => {
-    const message = event.data as { type?: string } | undefined;
-    if (message?.type !== 'shutdown') return;
-    void app.close().then(() => {
-      utilityProcess.parentPort?.postMessage({ type: 'shutdown-complete' });
-      process.exit(0);
-    });
+    const message = event.data as { type?: string; cloudUrl?: string; cloudToken?: string } | undefined;
+    if (message?.type === 'cloud-sync-config') {
+      app.get(SyncService).updateCredentials(message.cloudUrl ?? '', message.cloudToken ?? '');
+      return;
+    }
+    if (message?.type === 'shutdown') {
+      void app.close().then(() => {
+        utilityProcess.parentPort?.postMessage({ type: 'shutdown-complete' });
+        process.exit(0);
+      });
+    }
   });
 }
 

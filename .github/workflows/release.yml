@@ -1,0 +1,58 @@
+name: Windows Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  desktop:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            desktop/package-lock.json
+            desktop/server/package-lock.json
+            desktop/renderer/package-lock.json
+
+      - name: Install dependencies
+        shell: pwsh
+        run: |
+          npm ci --prefix desktop
+          npm ci --prefix desktop/server
+          npm ci --prefix desktop/renderer
+
+      - name: Verify tag matches package version
+        shell: pwsh
+        run: |
+          $version = node -p "require('./desktop/package.json').version"
+          if ($env:GITHUB_REF_NAME -ne "v$version") {
+            throw "Tag $env:GITHUB_REF_NAME does not match desktop version v$version"
+          }
+
+      - name: Build Windows installer
+        run: npm run build:desktop
+
+      - name: Write checksum
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem desktop/release/*.exe | Select-Object -First 1
+          $hash = (Get-FileHash $installer.FullName -Algorithm SHA256).Hash.ToLower()
+          "$hash  $($installer.Name)" | Set-Content desktop/release/SHA256SUMS.txt -Encoding ascii
+
+      - name: Create GitHub prerelease
+        uses: softprops/action-gh-release@v2
+        with:
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          generate_release_notes: true
+          files: |
+            desktop/release/*.exe
+            desktop/release/SHA256SUMS.txt

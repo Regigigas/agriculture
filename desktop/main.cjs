@@ -44,11 +44,29 @@ function loadOrCreateSecrets() {
     adminPassword: randomBytes(9).toString('base64url'),
     token: randomBytes(32).toString('base64url'),
     deviceKey: randomBytes(24).toString('base64url'),
+    cloudSync: { url: '', token: '' },
   }
+  persistSecrets(secrets)
+  return secrets
+}
+
+function persistSecrets(secrets) {
+  const configDirectory = path.join(app.getPath('userData'), 'config')
+  const filePath = path.join(configDirectory, 'local-secrets.json')
   mkdirSync(configDirectory, { recursive: true })
   const encrypted = safeStorage.encryptString(JSON.stringify(secrets)).toString('base64')
   writeFileSync(filePath, JSON.stringify({ version: 1, encrypted }), { encoding: 'utf8', mode: 0o600 })
-  return secrets
+}
+
+function normalizeCloudUrl(value) {
+  const normalized = typeof value === 'string' ? value.trim().replace(/\/$/, '') : ''
+  if (!normalized) return ''
+  const url = new URL(normalized)
+  const localHttp = url.protocol === 'http:' && ['localhost', '127.0.0.1'].includes(url.hostname)
+  if (url.protocol !== 'https:' && !localHttp) throw new Error('云端地址必须使用 HTTPS，本机调试可使用 localhost HTTP')
+  if (url.username || url.password) throw new Error('云端地址不能包含用户名或密码')
+  if (url.search || url.hash) throw new Error('云端地址不能包含查询参数或片段')
+  return normalized
 }
 
 function startBackend(secrets) {
@@ -62,6 +80,8 @@ function startBackend(secrets) {
       ADMIN_PASSWORD: secrets.adminPassword,
       DEMO_TOKEN: secrets.token,
       DEVICE_KEY: secrets.deviceKey,
+      CLOUD_SYNC_URL: secrets.cloudSync?.url || '',
+      CLOUD_SYNC_TOKEN: secrets.cloudSync?.token || '',
     },
     serviceName: '丰域农业本地数据服务',
     stdio: 'pipe',
@@ -274,6 +294,27 @@ if (!app.requestSingleInstanceLock()) {
       ipcMain.handle('local-admin-password', (event) => {
         if (!trustedRendererUrl(event.senderFrame.url)) throw new Error('不允许的凭据请求来源')
         return localSecrets?.adminPassword || ''
+      })
+      ipcMain.handle('cloud-sync-config', (event) => {
+        const sourceUrl = event.senderFrame?.url || event.sender.getURL()
+        if (!trustedRendererUrl(sourceUrl)) throw new Error('不允许的云同步配置请求来源')
+        return {
+          url: localSecrets?.cloudSync?.url || '',
+          tokenConfigured: Boolean(localSecrets?.cloudSync?.token),
+        }
+      })
+      ipcMain.handle('set-cloud-sync-config', (event, input) => {
+        const sourceUrl = event.senderFrame?.url || event.sender.getURL()
+        if (!trustedRendererUrl(sourceUrl)) throw new Error('不允许的云同步配置请求来源')
+        const url = normalizeCloudUrl(input?.url)
+        const enteredToken = typeof input?.token === 'string' ? input.token.trim() : ''
+        const token = enteredToken || (url && url === localSecrets?.cloudSync?.url ? localSecrets.cloudSync.token : '')
+        if ((url && !token) || (!url && token)) throw new Error('云端地址和同步令牌必须同时填写')
+        if (token.length > 500) throw new Error('同步令牌长度不能超过 500 个字符')
+        localSecrets = { ...localSecrets, cloudSync: { url, token } }
+        persistSecrets(localSecrets)
+        apiProcess?.postMessage({ type: 'cloud-sync-config', cloudUrl: url, cloudToken: token })
+        return { url, tokenConfigured: Boolean(token) }
       })
       ipcMain.handle('open-correction-window', async (event, contextRoute) => {
         const sourceUrl = event.senderFrame?.url || event.sender.getURL()

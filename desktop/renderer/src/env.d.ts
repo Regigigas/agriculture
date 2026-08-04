@@ -5,6 +5,8 @@ interface Window {
     readonly isDesktop: boolean
     readonly apiBaseUrl: string
     getLocalAdminPassword(): Promise<string>
+    getCloudSyncConfig(): Promise<{ url: string; tokenConfigured: boolean }>
+    setCloudSyncConfig(input: { url: string; token: string }): Promise<{ url: string; tokenConfigured: boolean }>
     openCorrectionWindow(contextRoute?: string): Promise<void>
     selectManagedDocument(): Promise<{ canceled: boolean; filePath?: string; fileName?: string }>
     openManagedDocument(filePath: string): Promise<void>
