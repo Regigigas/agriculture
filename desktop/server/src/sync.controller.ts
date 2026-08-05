@@ -1,7 +1,9 @@
 import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { SyncService } from './sync.service';
 import { SyncConflict, SyncStatus } from './sync.types';
+import { Roles } from './auth/roles.decorator';
 
+@Roles('admin')
 @Controller('system/sync')
 export class SyncController {
   constructor(private readonly service: SyncService) {}

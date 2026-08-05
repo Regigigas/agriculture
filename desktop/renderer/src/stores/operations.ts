@@ -1,7 +1,7 @@
 import { reactive, ref } from 'vue'
 import { defineStore } from 'pinia'
-import { request } from '@/api/client'
-import type { AuditLog, BackupInfo, IntegrityResult, OperationsRisk, OperationsSummary } from '@/types'
+import { authApi, request } from '@/api/client'
+import type { AuditLog, BackupInfo, IntegrityResult, LocalSyncResult, OperationsRisk, OperationsSummary } from '@/types'
 
 const emptySummary = (): OperationsSummary => ({
   activeSubjects: 0, activeFarms: 0, activeCycles: 0, pendingPlans: 0,
@@ -15,6 +15,7 @@ export const useOperationsStore = defineStore('operations', () => {
   const audits = ref<AuditLog[]>([])
   const backups = ref<BackupInfo[]>([])
   const integrity = ref<IntegrityResult | null>(null)
+  const lastLocalSync = ref<LocalSyncResult | null>(null)
   const loading = reactive<Record<string, boolean>>({})
   const errors = reactive<Record<string, string>>({})
 
@@ -31,7 +32,30 @@ export const useOperationsStore = defineStore('operations', () => {
   const loadBackups = () => run('backups', async () => { backups.value = await request<BackupInfo[]>('/system/backups') })
   const loadOperations = () => Promise.all([loadSummary(), loadRisks(), loadAudits()])
   const createBackup = () => run('backupMutation', async () => { const backup = await request<BackupInfo>('/system/backups', { method: 'POST' }); backups.value.unshift(backup); return backup })
+  const authorizeOperation = (currentPassword: string, operation: string, confirmation: string) =>
+    authApi.authorizeOperation({ currentPassword, operation, confirmation })
+  const syncLocalFile = (importId: string, sourceName: string, operationToken: string) => run('localSync', async () => {
+    const result = await request<LocalSyncResult>('/system/local-sync', {
+      method: 'POST',
+      body: JSON.stringify({ importId, sourceName }),
+      headers: { 'x-operation-authorization': operationToken },
+    })
+    lastLocalSync.value = result
+    await loadBackups().catch(() => undefined)
+    return result
+  })
   const checkIntegrity = () => run('integrity', async () => { integrity.value = await request<IntegrityResult>('/system/integrity'); return integrity.value })
 
-  return { summary, risks, audits, backups, integrity, loading, errors, loadSummary, loadRisks, loadAudits, loadBackups, loadOperations, createBackup, checkIntegrity }
+  function reset() {
+    summary.value = emptySummary()
+    risks.value = []
+    audits.value = []
+    backups.value = []
+    integrity.value = null
+    lastLocalSync.value = null
+    for (const key of Object.keys(loading)) delete loading[key]
+    for (const key of Object.keys(errors)) delete errors[key]
+  }
+
+  return { summary, risks, audits, backups, integrity, lastLocalSync, loading, errors, loadSummary, loadRisks, loadAudits, loadBackups, loadOperations, createBackup, authorizeOperation, syncLocalFile, checkIntegrity, reset }
 })

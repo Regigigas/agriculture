@@ -1,8 +1,10 @@
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:3100/api').replace(/\/$/, '')
+import { getServiceConfig } from './service-config'
+
 const TOKEN_KEY = 'agriculture_token'
 
 let unauthorizedHandler = null
 let handlingUnauthorized = false
+let requestGeneration = 0
 
 export function setUnauthorizedHandler(handler) {
   unauthorizedHandler = handler
@@ -20,12 +22,18 @@ export function resetUnauthorizedState() {
   handlingUnauthorized = false
 }
 
+export function invalidatePendingRequests() {
+  requestGeneration += 1
+}
+
 export function request({ url, method = 'GET', data, header = {}, handleAuthFailure = true }) {
+  const generation = requestGeneration
   const token = uni.getStorageSync(TOKEN_KEY)
+  const apiBaseUrl = getApiBaseUrl()
 
   return new Promise((resolve, reject) => {
     uni.request({
-      url: `${API_BASE_URL}${url}`,
+      url: `${apiBaseUrl}${url}`,
       method,
       data,
       header: {
@@ -34,6 +42,12 @@ export function request({ url, method = 'GET', data, header = {}, handleAuthFail
         ...header
       },
       success(response) {
+        if (generation !== requestGeneration) {
+          const error = new Error('会话已切换，请重新操作')
+          error.name = 'StaleSessionError'
+          reject(error)
+          return
+        }
         const { statusCode, data: responseData } = response
 
         if (statusCode >= 200 && statusCode < 300) {
@@ -49,10 +63,20 @@ export function request({ url, method = 'GET', data, header = {}, handleAuthFail
         reject(error)
       },
       fail(error) {
+        if (generation !== requestGeneration) {
+          const staleError = new Error('会话已切换，请重新操作')
+          staleError.name = 'StaleSessionError'
+          reject(staleError)
+          return
+        }
         reject(new Error(error.errMsg || '网络连接失败'))
       }
     })
   })
 }
 
-export { API_BASE_URL, TOKEN_KEY }
+export function getApiBaseUrl() {
+  return getServiceConfig().baseUrl
+}
+
+export { TOKEN_KEY }

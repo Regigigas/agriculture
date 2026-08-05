@@ -19,7 +19,7 @@
 
     <view v-if="farmStore.loading && !farmStore.fields.length" class="loading-state">正在加载地块...</view>
     <view v-else class="field-list">
-      <view v-for="field in farmStore.fields" :key="field.id" class="field-card surface">
+      <view v-for="field in farmStore.fields" :key="field.id" class="field-card surface" hover-class="field-card-pressed" @click="openScene(field)">
         <view class="field-head">
           <view class="field-code">{{ field.code || field.id }}</view>
           <view class="field-title-wrap">
@@ -44,6 +44,7 @@
           <view class="growth-track"><view class="growth-progress" :style="{ width: growthPercent(field) + '%' }"></view></view>
           <text class="growth-stage">{{ growthStage(field) }}</text>
         </view>
+        <view class="scene-entry"><text>查看三维地块</text><text class="scene-arrow">›</text></view>
       </view>
       <view v-if="!farmStore.fields.length" class="surface empty-state">暂无地块数据</view>
     </view>
@@ -74,6 +75,10 @@ async function refresh() {
 
 function fieldStatusText(status) {
   return ({ normal: '正常', healthy: '长势良好', attention: '需关注', warning: '需关注', abnormal: '异常', idle: '休耕', fallow: '休耕' })[status] || status || '正常'
+}
+
+function openScene(field) {
+  uni.navigateTo({ url: `/pages/fields/scene?id=${encodeURIComponent(field.id)}` })
 }
 
 function fieldStatusClass(status) {
@@ -150,6 +155,8 @@ function growthStage(field) {
   overflow: hidden;
   margin-bottom: 18rpx;
 }
+
+.field-card-pressed { opacity: 0.82; }
 
 .field-head {
   display: flex;
@@ -274,4 +281,7 @@ function growthStage(field) {
   border-radius: 5rpx;
   background: #4c825b;
 }
+
+.scene-entry { display: flex; height: 72rpx; align-items: center; justify-content: flex-end; padding: 0 24rpx; border-top: 1rpx solid #e4e8e5; color: #25613c; font-size: 23rpx; font-weight: 700; }
+.scene-arrow { margin-left: 12rpx; color: #77857b; font-size: 34rpx; line-height: 1; }
 </style>

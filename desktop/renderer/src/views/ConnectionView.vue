@@ -5,6 +5,7 @@ import { Bluetooth, Check, Cloud, Copy, Database, Laptop, RadioTower, RefreshCw,
 import PageHeader from '@/components/PageHeader.vue'
 import StatePanel from '@/components/StatePanel.vue'
 import { request } from '@/api/client'
+import { useAuthStore } from '@/stores/auth'
 
 interface ConnectionInfo {
   serverId: string
@@ -56,6 +57,7 @@ interface BluetoothNavigator extends Navigator {
 }
 
 const message = useMessage()
+const auth = useAuthStore()
 const connection = ref<ConnectionInfo | null>(null)
 const loading = ref(false)
 const error = ref('')
@@ -80,7 +82,7 @@ async function loadConnection() {
       request<ConnectionInfo>('/system/connection'),
       request<SyncStatus>('/system/sync/status'),
       request<SyncConflict[]>('/system/sync/conflicts'),
-      window.agricultureDesktop?.getCloudSyncConfig() ?? Promise.resolve({ url: '', tokenConfigured: false }),
+      window.agricultureDesktop?.getCloudSyncConfig(auth.token) ?? Promise.resolve({ url: '', tokenConfigured: false }),
     ])
     connection.value = connectionInfo
     sync.value = syncStatus
@@ -98,7 +100,7 @@ async function saveCloudConfig() {
   if (!window.agricultureDesktop) return message.warning('云同步凭据只能在 Electron 桌面端配置')
   configBusy.value = true
   try {
-    const config = await window.agricultureDesktop.setCloudSyncConfig({ url: cloudUrl.value, token: cloudToken.value })
+    const config = await window.agricultureDesktop.setCloudSyncConfig(auth.token, { url: cloudUrl.value, token: cloudToken.value })
     cloudUrl.value = config.url
     cloudToken.value = ''
     tokenConfigured.value = config.tokenConfigured

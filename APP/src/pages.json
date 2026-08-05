@@ -7,6 +7,43 @@
       }
     },
     {
+      "path": "pages/register/index",
+      "style": {
+        "navigationBarTitleText": "添加账号"
+      }
+    },
+    {
+      "path": "pages/service/index",
+      "style": {
+        "navigationBarTitleText": "服务连接"
+      }
+    },
+    {
+      "path": "pages/password/index",
+      "style": {
+        "navigationBarTitleText": "修改密码"
+      }
+    },
+    {
+      "path": "pages/chat/index",
+      "style": {
+        "navigationBarTitleText": "工作沟通",
+        "enablePullDownRefresh": true
+      }
+    },
+    {
+      "path": "pages/chat/create",
+      "style": {
+        "navigationBarTitleText": "发起会话"
+      }
+    },
+    {
+      "path": "pages/chat/messages",
+      "style": {
+        "navigationBarTitleText": "会话"
+      }
+    },
+    {
       "path": "pages/home/index",
       "style": {
         "navigationBarTitleText": "巡田首页",
@@ -28,6 +65,12 @@
       }
     },
     {
+      "path": "pages/fields/scene",
+      "style": {
+        "navigationBarTitleText": "三维地块"
+      }
+    },
+    {
       "path": "pages/purchases/index",
       "style": {
         "navigationBarTitleText": "采购管理",
@@ -38,6 +81,12 @@
       "path": "pages/profile/index",
       "style": {
         "navigationBarTitleText": "我的"
+      }
+    },
+    {
+      "path": "pages/update/index",
+      "style": {
+        "navigationBarTitleText": "软件更新"
       }
     }
   ],

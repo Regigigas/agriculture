@@ -1,23 +1,66 @@
-import { Body, Controller, HttpException, HttpStatus, Post } from '@nestjs/common';
-import { Public } from './public.decorator';
+import { Body, Controller, Get, Headers, Patch, Post, Query } from '@nestjs/common';
 import { User } from '../types';
+import { AuthService } from './auth.service';
+import { CurrentUser } from './current-user.decorator';
+import { Public } from './public.decorator';
+import { Roles } from './roles.decorator';
 
 @Controller('auth')
 export class AuthController {
+  constructor(private readonly auth: AuthService) {}
+
   @Public()
   @Post('login')
   login(@Body() body: unknown): { token: string; user: User } {
-    if (!body || typeof body !== 'object') {
-      throw new HttpException('请求体必须是 JSON 对象', HttpStatus.BAD_REQUEST);
-    }
-    const { username, password } = body as Record<string, unknown>;
-    if (username !== 'admin' || password !== 'admin123') {
-      throw new HttpException('用户名或密码错误', HttpStatus.UNAUTHORIZED);
-    }
+    const input = body && typeof body === 'object' && !Array.isArray(body) ? body as Record<string, unknown> : {};
+    return this.auth.login(input.username, input.password);
+  }
 
-    return {
-      token: process.env.DEMO_TOKEN ?? 'agri-demo-token',
-      user: { id: 'user-admin', username: 'admin', name: '智慧农场管理员', role: 'admin' },
-    };
+  @Public()
+  @Post('register')
+  register(@Body() body: unknown): { token: string; user: User } {
+    const input = body && typeof body === 'object' && !Array.isArray(body) ? body as Record<string, unknown> : {};
+    return this.auth.register(input);
+  }
+
+  @Get('me')
+  me(@CurrentUser() user: User): User {
+    return user;
+  }
+
+  @Get('users')
+  users(@CurrentUser() user: User, @Query('q') query?: string): User[] {
+    return this.auth.listUsers(user.id, query);
+  }
+
+  @Roles('admin')
+  @Post('users')
+  createUser(@CurrentUser() user: User, @Body() body: unknown): User {
+    const input = body && typeof body === 'object' && !Array.isArray(body) ? body as Record<string, unknown> : {};
+    return this.auth.createUser(user.id, input);
+  }
+
+  @Roles('admin')
+  @Post('operation-authorizations')
+  authorizeOperation(
+    @CurrentUser() user: User,
+    @Body() body: unknown,
+  ): { token: string; expiresAt: string } {
+    const input = body && typeof body === 'object' && !Array.isArray(body) ? body as Record<string, unknown> : {};
+    return this.auth.createOperationAuthorization(user.id, input);
+  }
+
+  @Patch('password')
+  changePassword(@CurrentUser() user: User, @Body() body: unknown): { changed: true } {
+    const input = body && typeof body === 'object' && !Array.isArray(body) ? body as Record<string, unknown> : {};
+    this.auth.changePassword(user.id, input.currentPassword, input.newPassword);
+    return { changed: true };
+  }
+
+  @Post('logout')
+  logout(@Headers('authorization') authorization = ''): { loggedOut: true } {
+    const token = authorization.startsWith('Bearer ') ? authorization.slice(7).trim() : '';
+    if (token) this.auth.revoke(token);
+    return { loggedOut: true };
   }
 }

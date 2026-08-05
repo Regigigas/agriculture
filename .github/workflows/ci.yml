@@ -1,0 +1,53 @@
+name: Quality Gate
+
+on:
+  push:
+    branches: ['main']
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test-and-build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            after/package-lock.json
+            APP/package-lock.json
+            desktop/package-lock.json
+            desktop/server/package-lock.json
+            desktop/renderer/package-lock.json
+      - name: Install dependencies
+        shell: pwsh
+        run: |
+          npm ci --prefix after
+          npm ci --prefix APP
+          npm ci --prefix desktop
+          npm ci --prefix desktop/server
+          npm ci --prefix desktop/renderer
+      - name: Run Vitest
+        run: npm test
+      - name: Run Three.js visual tests
+        shell: pwsh
+        run: |
+          npm exec --prefix desktop/renderer -- playwright install chromium
+          npm --prefix desktop/renderer run test:visual:all
+      - name: Verify synchronization
+        shell: pwsh
+        run: |
+          npm run verify:sync
+          npm run verify:local-sync
+      - name: Build applications
+        shell: pwsh
+        run: |
+          npm run build:api
+          npm --prefix desktop/server run build
+          npm --prefix desktop/renderer run build
+          npm run build:app
+          npm run build:app-resource

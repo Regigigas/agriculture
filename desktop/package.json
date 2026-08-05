@@ -1,6 +1,6 @@
 {
   "name": "fengyu-agriculture-desktop",
-  "version": "1.0.0-beta.1",
+  "version": "1.0.0-beta.2",
   "description": "支持离线、局域网与蓝牙接入的农业生产桌面系统",
   "author": "Fengyu Agriculture",
   "private": true,
@@ -19,6 +19,7 @@
     "@nestjs/common": "^11.1.28",
     "@nestjs/core": "^11.1.28",
     "@nestjs/platform-express": "^11.1.28",
+    "electron-updater": "^6.6.2",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1"
   },
@@ -56,6 +57,11 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "Regigigas",
+      "repo": "agriculture"
     }
   }
 }

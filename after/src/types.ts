@@ -2,12 +2,13 @@ export type FieldStatus = 'healthy' | 'attention' | 'fallow';
 export type TaskStatus = 'pending' | 'in_progress' | 'completed';
 export type TaskPriority = 'low' | 'medium' | 'high';
 export type PurchaseStatus = 'pending' | 'received';
+export type UserRole = 'admin' | 'worker';
 
 export interface User {
   id: string;
   username: string;
   name: string;
-  role: string;
+  role: UserRole;
 }
 
 export interface Field {

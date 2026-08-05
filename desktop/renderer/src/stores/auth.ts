@@ -1,6 +1,6 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
-import { authApi } from '@/api/client'
+import { authApi, invalidatePendingRequests } from '@/api/client'
 import type { User } from '@/types'
 
 const TOKEN_KEY = 'farm_admin_token'
@@ -39,12 +39,20 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  function logout() {
+  function clearSession() {
+    invalidatePendingRequests()
     token.value = ''
     user.value = null
     localStorage.removeItem(TOKEN_KEY)
     localStorage.removeItem(USER_KEY)
+    window.dispatchEvent(new Event('agriculture-session-cleared'))
   }
 
-  return { token, user, loading, error, isAuthenticated, login, logout }
+  async function logout() {
+    const logoutRequest = authApi.logout()
+    clearSession()
+    await logoutRequest.catch(() => undefined)
+  }
+
+  return { token, user, loading, error, isAuthenticated, login, clearSession, logout }
 })

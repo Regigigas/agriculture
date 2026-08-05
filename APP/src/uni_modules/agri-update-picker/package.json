@@ -1,0 +1,30 @@
+{
+  "id": "agri-update-picker",
+  "displayName": "农业应用更新包选择器",
+  "version": "1.0.0",
+  "description": "使用 Android 系统文件选择器读取 APK 或 WGT 更新包",
+  "engines": {
+    "HBuilderX": "^4.0"
+  },
+  "dcloudext": {
+    "type": "uts",
+    "declaration": {
+      "ads": "无",
+      "data": "仅读取用户主动选择的更新包",
+      "permissions": "无"
+    }
+  },
+  "uni_modules": {
+    "dependencies": [],
+    "encrypt": [],
+    "platforms": {
+      "cloud": { "tcb": "x", "aliyun": "x" },
+      "client": {
+        "uni-app": {
+          "app": { "android": { "minVersion": "21" }, "ios": "x" },
+          "h5": "x"
+        }
+      }
+    }
+  }
+}

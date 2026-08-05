@@ -3,7 +3,7 @@ import { computed, h, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useMessage } from 'naive-ui'
 import { useRoute, useRouter } from 'vue-router'
 import { NAvatar, NButton, NDrawer, NDrawerContent, NDropdown, NIcon, NMenu, type MenuOption } from 'naive-ui'
-import { AlertTriangle, Bell, Bluetooth, Boxes, Bug, Building2, ClipboardList, FileCheck2, Gauge, Layers3, LogOut, Menu, MessageSquareWarning, PackageSearch, RadioTower, ShieldAlert, ShoppingCart, Sprout, UserRound } from '@lucide/vue'
+import { AlertTriangle, Bell, Bluetooth, Boxes, Bug, Building2, ClipboardList, Download, FileCheck2, Gauge, Layers3, LogOut, Menu, MessageCircle, MessageSquareWarning, PackageSearch, RadioTower, ShieldAlert, ShoppingCart, Sprout, UserRound } from '@lucide/vue'
 import { request } from '@/api/client'
 import { useAuthStore } from '@/stores/auth'
 import { useFarmStore } from '@/stores/farm'
@@ -20,14 +20,16 @@ const serviceOnline = ref<boolean | null>(null)
 let healthTimer: ReturnType<typeof setInterval> | undefined
 
 const icon = (component: typeof Gauge) => () => h(NIcon, null, { default: () => h(component) })
-const menuOptions: MenuOption[] = [
+const menuOptions = computed<MenuOption[]>(() => [
   { type: 'group', label: '工作台', key: 'workbench', children: [
     { label: '农业驾驶舱', key: '/dashboard', icon: icon(Gauge) },
-    { label: '运营风险中心', key: '/operations', icon: icon(ShieldAlert) },
+    ...(auth.user?.role === 'admin' ? [{ label: '运营风险中心', key: '/operations', icon: icon(ShieldAlert) }] : []),
+    { label: '工作沟通', key: '/communication', icon: icon(MessageCircle) },
   ] },
   { type: 'group', label: '生产经营', key: 'production-group', children: [
     { label: '经营主体与农场', key: '/organizations', icon: icon(Building2) },
     { label: '农田档案', key: '/fields', icon: icon(Sprout) },
+    { label: '地块三维巡查', key: '/field-3d', icon: icon(Layers3) },
     { label: '种植季与执行', key: '/production', icon: icon(Layers3) },
     { label: '生产任务', key: '/tasks', icon: icon(ClipboardList) },
     { label: '巡田问题', key: '/issues', icon: icon(Bug) },
@@ -40,9 +42,12 @@ const menuOptions: MenuOption[] = [
   ] },
   { type: 'group', label: '设备与连接', key: 'device-group', children: [
     { label: '设备监控', key: '/devices', icon: icon(RadioTower) },
-    { label: '连接中心', key: '/connections', icon: icon(Bluetooth) },
+    ...(auth.user?.role === 'admin' ? [
+      { label: '连接中心', key: '/connections', icon: icon(Bluetooth) },
+      { label: '软件更新', key: '/update', icon: icon(Download) },
+    ] : []),
   ] },
-]
+])
 const activeKey = computed(() => route.path)
 const pageTitle = computed(() => String(route.meta.title || '农业管理'))
 const activeAlerts = computed(() => farm.alerts.filter((item) => !item.acknowledged))
@@ -62,9 +67,9 @@ function navigate(key: string | number) {
   router.push(String(key))
 }
 
-function logout() {
-  auth.logout()
-  router.replace('/login')
+async function logout() {
+  await auth.logout()
+  await router.replace('/login')
 }
 
 async function checkHealth() {

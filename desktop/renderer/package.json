@@ -1,11 +1,14 @@
 {
   "name": "fengyu-agriculture-desktop-renderer",
   "private": true,
-  "version": "1.0.0-beta.1",
+  "version": "1.0.0-beta.2",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc -b && vite build",
+    "test:visual": "playwright test tests/field-3d.visual.spec.ts",
+    "test:visual:app": "playwright test tests/app-field-3d.visual.spec.ts",
+    "test:visual:all": "playwright test tests/field-3d.visual.spec.ts tests/app-field-3d.visual.spec.ts",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -13,11 +16,14 @@
     "@lucide/vue": "^1.28.0",
     "naive-ui": "^2.40.1",
     "pinia": "^2.2.6",
+    "three": "^0.179.1",
     "vue": "^3.5.13",
     "vue-router": "^4.5.0"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
+    "@types/three": "^0.179.0",
+    "@playwright/test": "^1.54.2",
     "@vitejs/plugin-vue": "^5.2.1",
     "typescript": "~5.7.2",
     "vite": "^6.0.5",

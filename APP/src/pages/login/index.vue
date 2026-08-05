@@ -40,6 +40,10 @@
       <button class="primary-button login-button" :disabled="!canSubmit || authStore.loggingIn" @click="submit">
         {{ authStore.loggingIn ? '正在登录...' : '登录' }}
       </button>
+      <button class="service-button" @click="openServiceConfig">
+        <text>{{ connectionType }}</text>
+        <text class="service-action">配置连接 ›</text>
+      </button>
     </view>
 
     <view class="login-foot">
@@ -50,17 +54,23 @@
 </template>
 
 <script setup>
-import { computed, reactive } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { computed, reactive, ref } from 'vue'
+import { onLoad, onShow } from '@dcloudio/uni-app'
 import { useAuthStore } from '../../store/auth'
+import { getServiceConfig, serviceModeText } from '../../utils/service-config'
 
 const authStore = useAuthStore()
 const form = reactive({ username: '', password: '' })
 const canSubmit = computed(() => form.username && form.password)
+const connectionType = ref('线上服务')
 
 onLoad(() => {
   authStore.restoreSession()
   if (authStore.isAuthenticated) uni.switchTab({ url: '/pages/home/index' })
+})
+
+onShow(() => {
+  connectionType.value = serviceModeText(getServiceConfig().mode)
 })
 
 async function submit() {
@@ -72,6 +82,10 @@ async function submit() {
   } catch (error) {
     uni.showToast({ title: error.message || '登录失败', icon: 'none' })
   }
+}
+
+function openServiceConfig() {
+  uni.navigateTo({ url: '/pages/service/index' })
 }
 </script>
 
@@ -176,6 +190,23 @@ async function submit() {
 .login-button {
   margin-top: 42rpx;
 }
+
+.service-button {
+  display: flex;
+  height: 76rpx;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 18rpx;
+  border: 1rpx solid #b9c8bd;
+  border-radius: 8rpx;
+  background: #ffffff;
+  color: #245839;
+  font-size: 26rpx;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.service-action { color: #6f7d74; font-size: 23rpx; font-weight: 500; }
 
 .login-foot {
   display: flex;

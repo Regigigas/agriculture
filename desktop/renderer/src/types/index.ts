@@ -7,17 +7,60 @@ export type InventoryTransactionType = 'opening' | 'purchase' | 'usage' | 'retur
 export type CorrectionStatus = 'open' | 'processing' | 'resolved'
 export type CorrectionCategory = 'data' | 'system' | 'workflow' | 'suggestion'
 export type PurchaseStatus = 'pending' | 'received'
+export type UserRole = 'admin' | 'worker'
+export type ChatConversationType = 'private' | 'group'
+export type ChatDeliveryStatus = 'sending' | 'sent' | 'failed'
 
 export interface User {
   id?: string | number
   username: string
   name?: string
-  role?: string
+  role?: UserRole
 }
 
 export interface LoginResponse {
   token: string
   user?: User
+}
+
+export interface CreateUserInput {
+  name: string
+  username: string
+  password: string
+  role: UserRole
+}
+
+export interface ChatMessage {
+  id: string | number
+  conversationId: string | number
+  senderId: string | number
+  clientMessageId: string
+  sender?: User
+  body: string
+  createdAt: string
+  clientStatus?: ChatDeliveryStatus
+}
+
+export interface ChatConversation {
+  id: string | number
+  type: ChatConversationType
+  title?: string | null
+  members: User[]
+  lastMessage?: ChatMessage | null
+  unreadCount: number
+  createdAt?: string
+  updatedAt: string
+}
+
+export interface CreateGroupConversationInput {
+  title: string
+  memberIds: Array<string | number>
+}
+
+export interface OperationAuthorization {
+  token: string
+  operation: string
+  expiresAt: string
 }
 
 export interface Field {
@@ -457,6 +500,17 @@ export interface BackupInfo {
   path: string
   size: number
   createdAt: string
+}
+
+export interface LocalSyncResult {
+  sourceName: string
+  inserted: number
+  updated: number
+  skipped: number
+  telemetryImported: number
+  auditImported: number
+  safetyBackup: BackupInfo
+  synchronizedAt: string
 }
 
 export interface IntegrityResult {

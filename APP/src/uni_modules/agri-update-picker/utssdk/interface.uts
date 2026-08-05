@@ -1,0 +1,29 @@
+export type UpdatePackageFile = {
+  path : string
+  name : string
+  size : number
+}
+
+export type UpdatePackageError = {
+  errMsg : string
+}
+
+export type ChooseUpdatePackageOptions = {
+  success : (result : UpdatePackageFile) => void
+  fail : (error : UpdatePackageError) => void
+}
+
+export type ChooseUpdatePackage = (options : ChooseUpdatePackageOptions) => void
+
+export type UpdatePackageInspection = {
+  size : number
+  sha256 : string
+}
+
+export type InspectUpdatePackageOptions = {
+  path : string
+  success : (result : UpdatePackageInspection) => void
+  fail : (error : UpdatePackageError) => void
+}
+
+export type InspectUpdatePackage = (options : InspectUpdatePackageOptions) => void

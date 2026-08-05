@@ -6,6 +6,8 @@ import { useProductionStore } from '@/stores/production'
 import type { BusinessSubject, Farm, SubjectType } from '@/types'
 import PageHeader from '@/components/PageHeader.vue'
 import StatePanel from '@/components/StatePanel.vue'
+import TableActions from '@/components/TableActions.vue'
+import type { TableAction } from '@/components/table-actions'
 
 const production = useProductionStore()
 const message = useMessage()
@@ -48,6 +50,10 @@ async function toggleFarm(item: Farm) {
   try { await production.updateFarmStatus(item.id, item.status === 'active' ? 'inactive' : 'active'); message.success('农场状态已更新') } catch { message.error(production.errors.farmMutation) }
 }
 
+function farmActions(item: Farm): TableAction[] {
+  return [{ key: 'toggle', label: item.status === 'active' ? '停用' : '启用', secondary: true, onClick: () => toggleFarm(item) }]
+}
+
 onMounted(() => production.loadOrganization().catch(() => undefined))
 </script>
 
@@ -76,7 +82,7 @@ onMounted(() => production.loadOrganization().catch(() => undefined))
         </div>
       </n-tab-pane>
       <n-tab-pane name="farms" tab="农场园区">
-        <div class="table-wrap"><n-table :single-line="false"><thead><tr><th>农场</th><th>经营主体</th><th>位置</th><th>备案面积</th><th>负责人</th><th>状态</th><th>操作</th></tr></thead><tbody><tr v-for="item in production.farms" :key="item.id"><td><strong>{{ item.name }}</strong><small class="cell-detail">{{ item.description || '无补充说明' }}</small></td><td>{{ subjectName(item.subjectId) }}</td><td>{{ item.location }}</td><td>{{ item.totalArea }} 亩</td><td>{{ item.manager }}</td><td><n-tag size="small" :type="item.status === 'active' ? 'success' : 'default'">{{ item.status === 'active' ? '运营中' : '已停用' }}</n-tag></td><td><n-button size="tiny" secondary @click="toggleFarm(item)">{{ item.status === 'active' ? '停用' : '启用' }}</n-button></td></tr></tbody></n-table></div>
+        <div class="table-wrap action-table"><n-table :single-line="false"><thead><tr><th>农场</th><th>经营主体</th><th>位置</th><th>备案面积</th><th>负责人</th><th>状态</th><th>操作</th></tr></thead><tbody><tr v-for="item in production.farms" :key="item.id"><td><strong>{{ item.name }}</strong><small class="cell-detail">{{ item.description || '无补充说明' }}</small></td><td>{{ subjectName(item.subjectId) }}</td><td>{{ item.location }}</td><td>{{ item.totalArea }} 亩</td><td>{{ item.manager }}</td><td><n-tag size="small" :type="item.status === 'active' ? 'success' : 'default'">{{ item.status === 'active' ? '运营中' : '已停用' }}</n-tag></td><td><table-actions :actions="farmActions(item)" /></td></tr></tbody></n-table></div>
       </n-tab-pane>
     </n-tabs>
   </state-panel>

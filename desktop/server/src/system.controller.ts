@@ -1,7 +1,13 @@
-import { Controller, Get, Post } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Headers, Post } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { hostname, networkInterfaces } from 'os';
-import { BackupInfo, LocalDatabase } from './local-database';
+import { AgricultureService } from './agriculture.service';
+import { AuthService } from './auth/auth.service';
+import { CurrentUser } from './auth/current-user.decorator';
+import { Roles } from './auth/roles.decorator';
+import { BackupInfo, LocalDatabase, LocalSyncResult } from './local-database';
+import { ProductionService } from './production.service';
+import { User } from './types';
 
 interface ConnectionInfo {
   serverId: string;
@@ -18,7 +24,12 @@ interface ConnectionInfo {
 
 @Controller('system')
 export class SystemController {
-  constructor(private readonly database: LocalDatabase) {}
+  constructor(
+    private readonly database: LocalDatabase,
+    private readonly agriculture: AgricultureService,
+    private readonly production: ProductionService,
+    private readonly auth: AuthService,
+  ) {}
 
   @Get('connection')
   connection(): ConnectionInfo {
@@ -44,18 +55,54 @@ export class SystemController {
   }
 
   @Get('backups')
+  @Roles('admin')
   backups(): BackupInfo[] {
     return this.database.listBackups();
   }
 
   @Post('backups')
+  @Roles('admin')
   createBackup(): BackupInfo {
     const backup = this.database.createBackup();
     this.database.appendAudit('system', backup.name, 'backup', backup.path);
     return backup;
   }
 
+  @Roles('admin')
+  @Post('local-sync')
+  localSync(
+    @Body() body: unknown,
+    @CurrentUser() user: User,
+    @Headers('x-operation-authorization') operationAuthorization = '',
+  ): LocalSyncResult {
+    if (!body || typeof body !== 'object' || Array.isArray(body)) throw new BadRequestException('请求体必须是 JSON 对象');
+    const input = body as Record<string, unknown>;
+    if (typeof input.importId !== 'string' || typeof input.sourceName !== 'string') {
+      throw new BadRequestException('缺少本地数据文件信息');
+    }
+    this.auth.consumeOperationAuthorization(user.id, 'local-data-sync', operationAuthorization);
+    try {
+      const result = this.database.syncFromStagedFile(input.importId, input.sourceName);
+      this.agriculture.reloadFromDatabase();
+      this.production.reloadFromDatabase();
+      return result;
+    } catch (cause) {
+      throw new BadRequestException(cause instanceof Error ? cause.message : '本地数据同步失败');
+    }
+  }
+
+  @Roles('admin')
+  @Post('authorize-database-restore')
+  authorizeDatabaseRestore(
+    @CurrentUser() user: User,
+    @Headers('x-operation-authorization') operationAuthorization = '',
+  ): { authorized: true } {
+    this.auth.consumeOperationAuthorization(user.id, 'database-restore', operationAuthorization);
+    return { authorized: true };
+  }
+
   @Get('integrity')
+  @Roles('admin')
   integrity(): { ok: boolean; messages: string[]; checkedAt: string } {
     return this.database.integrityCheck();
   }

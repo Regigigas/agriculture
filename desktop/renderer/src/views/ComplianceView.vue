@@ -7,6 +7,8 @@ import { useProductionStore } from '@/stores/production'
 import type { ComplianceDocument, FarmContract } from '@/types'
 import PageHeader from '@/components/PageHeader.vue'
 import StatePanel from '@/components/StatePanel.vue'
+import TableActions from '@/components/TableActions.vue'
+import type { TableAction } from '@/components/table-actions'
 
 const farm = useFarmStore()
 const production = useProductionStore()
@@ -72,6 +74,14 @@ function terminate(item: FarmContract) {
   dialog.warning({ title: '终止合同', content: `确认终止“${item.title}”？终止后不能恢复。`, positiveText: '确认终止', negativeText: '取消', onPositiveClick: () => contractStatus(item, 'terminated') })
 }
 
+function contractActions(item: FarmContract): TableAction[] {
+  const actions: TableAction[] = []
+  if (item.filePath) actions.push({ key: 'attachment', label: '打开附件', icon: FolderOpen, quaternary: true, onClick: () => openAttachment(item.filePath) })
+  if (item.status === 'draft') actions.push({ key: 'activate', label: '生效', type: 'primary', onClick: () => contractStatus(item, 'active') })
+  if (item.status === 'active') actions.push({ key: 'terminate', label: '终止', type: 'error', secondary: true, onClick: () => terminate(item) })
+  return actions
+}
+
 onMounted(() => Promise.all([farm.loadFields(), production.loadCompliance()]).catch(() => undefined))
 </script>
 
@@ -85,7 +95,7 @@ onMounted(() => Promise.all([farm.loadFields(), production.loadCompliance()]).ca
         <div class="table-wrap compliance-table"><n-table :single-line="false"><thead><tr><th>文书</th><th>类型</th><th>关联范围</th><th>签发日期</th><th>有效期</th><th>保管人</th><th>状态</th><th>附件</th></tr></thead><tbody><tr v-for="item in production.documents" :key="item.id"><td><strong>{{ item.name }}</strong><small class="cell-detail">{{ item.documentNo || '无文书编号' }}</small></td><td>{{ documentTypes[item.documentType] }}</td><td>{{ farmName(item.farmId) }}<small class="cell-detail">{{ subjectName(item.subjectId) }}</small></td><td>{{ item.issueDate || '-' }}</td><td>{{ item.expiryDate || '长期' }}</td><td>{{ item.custodian }}</td><td><n-tag size="small" :type="item.status === 'valid' ? 'success' : item.status === 'expiring' ? 'warning' : 'error'">{{ item.status === 'valid' ? '有效' : item.status === 'expiring' ? '即将到期' : '已过期' }}</n-tag></td><td><n-button v-if="item.filePath" size="tiny" secondary @click="openAttachment(item.filePath)"><template #icon><FolderOpen /></template>打开</n-button><span v-else class="muted">无附件</span></td></tr></tbody></n-table></div>
       </n-tab-pane>
       <n-tab-pane name="contracts" tab="农业合同">
-        <div class="table-wrap compliance-table"><n-table :single-line="false"><thead><tr><th>合同</th><th>类型</th><th>相对方</th><th>期限</th><th>金额</th><th>关联主体</th><th>状态</th><th>操作</th></tr></thead><tbody><tr v-for="item in production.contracts" :key="item.id"><td><strong>{{ item.title }}</strong><small class="cell-detail">{{ item.contractNo }}</small></td><td>{{ contractTypes[item.contractType] }}</td><td>{{ item.counterparty }}</td><td>{{ item.startDate }} 至 {{ item.endDate }}</td><td>{{ money(item.amount) }}</td><td>{{ subjectName(item.subjectId) }}</td><td><n-tag size="small" :type="item.status === 'active' ? 'success' : item.status === 'draft' ? 'info' : item.status === 'expired' ? 'error' : 'default'">{{ item.status === 'active' ? '履行中' : item.status === 'draft' ? '草稿' : item.status === 'expired' ? '已到期' : '已终止' }}</n-tag></td><td><div class="inline-actions"><n-button v-if="item.filePath" size="tiny" quaternary title="打开合同附件" @click="openAttachment(item.filePath)"><template #icon><FolderOpen /></template></n-button><n-button v-if="item.status === 'draft'" size="tiny" type="primary" @click="contractStatus(item, 'active')">生效</n-button><n-button v-if="item.status === 'active'" size="tiny" secondary type="error" @click="terminate(item)">终止</n-button></div></td></tr></tbody></n-table></div>
+        <div class="table-wrap compliance-table action-table"><n-table :single-line="false"><thead><tr><th>合同</th><th>类型</th><th>相对方</th><th>期限</th><th>金额</th><th>关联主体</th><th>状态</th><th>操作</th></tr></thead><tbody><tr v-for="item in production.contracts" :key="item.id"><td><strong>{{ item.title }}</strong><small class="cell-detail">{{ item.contractNo }}</small></td><td>{{ contractTypes[item.contractType] }}</td><td>{{ item.counterparty }}</td><td>{{ item.startDate }} 至 {{ item.endDate }}</td><td>{{ money(item.amount) }}</td><td>{{ subjectName(item.subjectId) }}</td><td><n-tag size="small" :type="item.status === 'active' ? 'success' : item.status === 'draft' ? 'info' : item.status === 'expired' ? 'error' : 'default'">{{ item.status === 'active' ? '履行中' : item.status === 'draft' ? '草稿' : item.status === 'expired' ? '已到期' : '已终止' }}</n-tag></td><td><table-actions :actions="contractActions(item)" /></td></tr></tbody></n-table></div>
       </n-tab-pane>
     </n-tabs>
   </state-panel>
@@ -95,5 +105,5 @@ onMounted(() => Promise.all([farm.loadFields(), production.loadCompliance()]).ca
 </template>
 
 <style scoped>
-.compliance-table .n-table { min-width: 1120px; }.inline-actions { display: flex; align-items: center; gap: 5px; white-space: nowrap; }.wide-modal { width: min(720px, calc(100vw - 32px)); }.attachment-picker { width: 100%; padding: 9px; display: flex; align-items: center; gap: 12px; border: 1px dashed #cfd8d3; border-radius: 6px; }.attachment-picker span { color: #7a8781; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.compliance-table .n-table { min-width: 1120px; }.wide-modal { width: min(720px, calc(100vw - 32px)); }.attachment-picker { width: 100%; padding: 9px; display: flex; align-items: center; gap: 12px; border: 1px dashed #cfd8d3; border-radius: 6px; }.attachment-picker span { color: #7a8781; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 </style>

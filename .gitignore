@@ -2,6 +2,8 @@ node_modules
 dist
 dist-electron
 release
+test-results
+playwright-report
 *.local
 
 # pnpm
@@ -35,3 +37,4 @@ Thumbs.db
 # generated
 auto-imports.d.ts
 components.d.ts
+*.tsbuildinfo

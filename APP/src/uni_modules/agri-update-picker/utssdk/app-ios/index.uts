@@ -1,0 +1,9 @@
+import { ChooseUpdatePackage, ChooseUpdatePackageOptions, InspectUpdatePackage, InspectUpdatePackageOptions } from '../interface.uts'
+
+export const chooseUpdatePackage : ChooseUpdatePackage = function (options : ChooseUpdatePackageOptions) {
+  options.fail({ errMsg: '本地更新仅支持 Android App' })
+}
+
+export const inspectUpdatePackage : InspectUpdatePackage = function (options : InspectUpdatePackageOptions) {
+  options.fail({ errMsg: '当前平台不支持校验本地更新包' })
+}

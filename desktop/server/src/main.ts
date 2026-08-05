@@ -21,7 +21,7 @@ async function bootstrap(): Promise<void> {
       }
     },
     credentials: false,
-    allowedHeaders: ['Content-Type', 'Authorization', 'x-device-key', 'x-operation-id', 'x-target-server-id'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-device-key', 'x-operation-id', 'x-target-server-id', 'x-operation-authorization'],
     methods: ['GET', 'POST', 'PATCH', 'OPTIONS'],
   });
 

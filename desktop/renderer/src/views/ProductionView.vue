@@ -7,6 +7,8 @@ import { useProductionStore } from '@/stores/production'
 import type { CropCycle, CropCycleStatus, OperationType, ProductionPlan, ProductionPlanStatus } from '@/types'
 import PageHeader from '@/components/PageHeader.vue'
 import StatePanel from '@/components/StatePanel.vue'
+import TableActions from '@/components/TableActions.vue'
+import type { TableAction } from '@/components/table-actions'
 
 const farm = useFarmStore()
 const production = useProductionStore()
@@ -79,6 +81,23 @@ function openLog(item?: ProductionPlan) {
   showLog.value = true
 }
 
+function cycleActions(item: CropCycle): TableAction[] {
+  const actions: TableAction[] = []
+  if (item.status === 'planned') actions.push({ key: 'start', label: '开季', icon: Play, type: 'primary', onClick: () => cycleStatus(item, 'in_progress') })
+  if (item.status === 'in_progress') actions.push({ key: 'harvest', label: '进入采收', type: 'warning', onClick: () => cycleStatus(item, 'harvesting') })
+  if (item.status === 'harvesting') actions.push({ key: 'finish', label: '完成结季', icon: Check, type: 'success', onClick: () => finishCycle(item) })
+  if (['planned', 'in_progress'].includes(item.status)) actions.push({ key: 'cancel', label: '取消', icon: CircleX, type: 'error', quaternary: true, onClick: () => cancelCycle(item) })
+  return actions
+}
+
+function planActions(item: ProductionPlan): TableAction[] {
+  const actions: TableAction[] = []
+  if (item.status === 'planned' && canExecutePlan(item)) actions.push({ key: 'start', label: '开始', secondary: true, onClick: () => planStatus(item, 'in_progress') })
+  if (['planned', 'in_progress'].includes(item.status) && canExecutePlan(item)) actions.push({ key: 'log', label: '登记实绩', type: 'primary', onClick: () => openLog(item) })
+  if (['planned', 'in_progress'].includes(item.status)) actions.push({ key: 'cancel', label: '取消', type: 'error', quaternary: true, onClick: () => cancelPlan(item) })
+  return actions
+}
+
 onMounted(() => Promise.all([farm.loadFields(), farm.loadInventory(), production.loadProduction()]).catch(() => undefined))
 </script>
 
@@ -91,10 +110,10 @@ onMounted(() => Promise.all([farm.loadFields(), farm.loadInventory(), production
   <state-panel :loading="production.loading.cycles || production.loading.plans || production.loading.logs" :error="production.errors.cycles || production.errors.plans || production.errors.logs" @retry="production.loadProduction">
     <n-tabs type="line" animated>
       <n-tab-pane name="cycles" tab="种植季">
-        <div class="table-wrap production-table"><n-table :single-line="false"><thead><tr><th>种植季</th><th>地块</th><th>计划周期</th><th>目标产量</th><th>预算</th><th>负责人</th><th>状态</th><th>操作</th></tr></thead><tbody><tr v-for="item in production.cycles" :key="item.id"><td><strong>{{ item.code }} · {{ item.crop }}</strong><small class="cell-detail">{{ item.variety || '未填写品种' }} · {{ item.notes || '无说明' }}</small></td><td>{{ fieldName(item.fieldId) }}</td><td>{{ item.plannedStart }} 至 {{ item.plannedHarvest }}</td><td>{{ item.targetYield.toLocaleString() }} kg</td><td>{{ money(item.budget) }}</td><td>{{ item.manager }}</td><td><n-tag size="small" :type="cycleTypes[item.status]">{{ cycleLabels[item.status] }}</n-tag></td><td><div class="inline-actions"><n-button v-if="item.status === 'planned'" size="tiny" type="primary" @click="cycleStatus(item, 'in_progress')"><template #icon><Play /></template>开季</n-button><n-button v-if="item.status === 'in_progress'" size="tiny" type="warning" @click="cycleStatus(item, 'harvesting')">进入采收</n-button><n-button v-if="item.status === 'harvesting'" size="tiny" type="success" @click="finishCycle(item)"><template #icon><Check /></template>完成结季</n-button><n-button v-if="['planned','in_progress'].includes(item.status)" size="tiny" quaternary type="error" @click="cancelCycle(item)"><template #icon><CircleX /></template>取消</n-button></div></td></tr></tbody></n-table></div>
+        <div class="table-wrap production-table action-table"><n-table :single-line="false"><thead><tr><th>种植季</th><th>地块</th><th>计划周期</th><th>目标产量</th><th>预算</th><th>负责人</th><th>状态</th><th>操作</th></tr></thead><tbody><tr v-for="item in production.cycles" :key="item.id"><td><strong>{{ item.code }} · {{ item.crop }}</strong><small class="cell-detail">{{ item.variety || '未填写品种' }} · {{ item.notes || '无说明' }}</small></td><td>{{ fieldName(item.fieldId) }}</td><td>{{ item.plannedStart }} 至 {{ item.plannedHarvest }}</td><td>{{ item.targetYield.toLocaleString() }} kg</td><td>{{ money(item.budget) }}</td><td>{{ item.manager }}</td><td><n-tag size="small" :type="cycleTypes[item.status]">{{ cycleLabels[item.status] }}</n-tag></td><td><table-actions :actions="cycleActions(item)" /></td></tr></tbody></n-table></div>
       </n-tab-pane>
       <n-tab-pane name="plans" tab="生产计划">
-        <div class="table-wrap production-table"><n-table :single-line="false"><thead><tr><th>计划</th><th>种植季</th><th>类型</th><th>计划日期</th><th>负责人</th><th>预计成本/物料</th><th>状态</th><th>操作</th></tr></thead><tbody><tr v-for="item in production.plans" :key="item.id"><td><strong>{{ item.title }}</strong><small class="cell-detail">{{ item.notes || '无补充说明' }}</small></td><td>{{ cycleName(item.cycleId) }}</td><td>{{ operationLabels[item.operationType] }}</td><td>{{ item.plannedDate }}</td><td>{{ item.assignee }}</td><td>{{ money(item.plannedCost) }}<small class="cell-detail">{{ item.plannedMaterial || '未指定物料' }}</small></td><td><n-tag size="small" :type="item.status === 'completed' ? 'success' : item.status === 'in_progress' ? 'info' : item.status === 'cancelled' ? 'error' : 'warning'">{{ planLabels[item.status] }}</n-tag></td><td><div class="inline-actions"><n-button v-if="item.status === 'planned' && canExecutePlan(item)" size="tiny" secondary @click="planStatus(item, 'in_progress')">开始</n-button><n-button v-if="['planned','in_progress'].includes(item.status) && canExecutePlan(item)" size="tiny" type="primary" @click="openLog(item)">登记实绩</n-button><span v-if="['planned','in_progress'].includes(item.status) && !canExecutePlan(item)" class="muted">等待开季</span><n-button v-if="['planned','in_progress'].includes(item.status)" size="tiny" quaternary type="error" @click="cancelPlan(item)">取消</n-button></div></td></tr></tbody></n-table></div>
+        <div class="table-wrap production-table action-table"><n-table :single-line="false"><thead><tr><th>计划</th><th>种植季</th><th>类型</th><th>计划日期</th><th>负责人</th><th>预计成本/物料</th><th>状态</th><th>操作</th></tr></thead><tbody><tr v-for="item in production.plans" :key="item.id"><td><strong>{{ item.title }}</strong><small class="cell-detail">{{ item.notes || '无补充说明' }}</small></td><td>{{ cycleName(item.cycleId) }}</td><td>{{ operationLabels[item.operationType] }}</td><td>{{ item.plannedDate }}</td><td>{{ item.assignee }}</td><td>{{ money(item.plannedCost) }}<small class="cell-detail">{{ item.plannedMaterial || '未指定物料' }}</small></td><td><n-tag size="small" :type="item.status === 'completed' ? 'success' : item.status === 'in_progress' ? 'info' : item.status === 'cancelled' ? 'error' : 'warning'">{{ planLabels[item.status] }}</n-tag></td><td><table-actions :actions="planActions(item)" :note="['planned','in_progress'].includes(item.status) && !canExecutePlan(item) ? '等待开季' : ''" /></td></tr></tbody></n-table></div>
       </n-tab-pane>
       <n-tab-pane name="logs" tab="农事实绩">
         <div class="operation-timeline"><article v-for="item in production.logs" :key="item.id"><span class="timeline-dot" /><div class="timeline-date">{{ new Date(item.occurredAt).toLocaleString('zh-CN', { hour12: false }) }}</div><div class="timeline-body"><div><strong>{{ operationLabels[item.operationType] }} · {{ cycleName(item.cycleId) }}</strong><n-tag size="tiny" :bordered="false">{{ fieldName(item.fieldId) }}</n-tag></div><p>{{ item.result }}</p><small>执行：{{ item.executor }} · 工时 {{ item.laborHours }}h · 成本 {{ money(item.cost) }}<template v-if="item.materialName"> · {{ item.materialName }} {{ item.materialQuantity }}{{ item.materialUnit }}</template><template v-if="item.weather"> · {{ item.weather }}</template></small></div></article></div>
@@ -108,7 +127,7 @@ onMounted(() => Promise.all([farm.loadFields(), farm.loadInventory(), production
 </template>
 
 <style scoped>
-.production-table .n-table { min-width: 1120px; }.inline-actions { display: flex; gap: 6px; white-space: nowrap; }
+.production-table .n-table { min-width: 1120px; }
 .operation-timeline { padding: 10px 4px; }.operation-timeline article { min-height: 94px; display: grid; grid-template-columns: 18px 155px minmax(0, 1fr); gap: 12px; position: relative; }.operation-timeline article::before { content: ''; position: absolute; left: 7px; top: 17px; bottom: -1px; width: 1px; background: #dce4df; }.operation-timeline article:last-child::before { display: none; }.timeline-dot { width: 15px; height: 15px; margin-top: 4px; z-index: 1; border: 4px solid #dfe9e2; border-radius: 50%; background: #4e765c; }.timeline-date { padding-top: 2px; color: #7c8983; font-size: 11px; }.timeline-body { padding: 0 0 20px; border-bottom: 1px solid #edf0ee; }.timeline-body > div { display: flex; align-items: center; gap: 8px; }.timeline-body p { margin: 7px 0; color: #55635c; font-size: 13px; }.timeline-body small { color: #84908a; font-size: 11px; }
 .wide-modal { width: min(720px, calc(100vw - 32px)); }
 @media (max-width: 700px) { .operation-timeline article { grid-template-columns: 18px 1fr; }.timeline-date { grid-column: 2; }.timeline-body { grid-column: 2; } }

@@ -1,4 +1,4 @@
-import type { LoginResponse } from '@/types'
+import type { ChatConversation, ChatMessage, CreateGroupConversationInput, CreateUserInput, LoginResponse, OperationAuthorization, User } from '@/types'
 
 const API_BASE_URL = (
   window.agricultureDesktop?.apiBaseUrl ||
@@ -23,7 +23,14 @@ interface RequestOptions extends RequestInit {
   skipAuthRedirect?: boolean
 }
 
+let requestGeneration = 0
+
+export function invalidatePendingRequests() {
+  requestGeneration += 1
+}
+
 export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  const generation = requestGeneration
   const { skipAuthRedirect = false, ...fetchOptions } = options
   const token = localStorage.getItem('farm_admin_token')
   const headers = new Headers(fetchOptions.headers)
@@ -37,6 +44,7 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
   } catch {
     throw new ApiError('无法连接服务器，请检查 API 服务是否运行', 0)
   }
+  if (generation !== requestGeneration) throw new ApiError('会话已切换，请重新操作', 0)
 
   const payload = (await response.json().catch(() => ({}))) as ApiEnvelope<T> | T
   if (!response.ok) {
@@ -61,4 +69,35 @@ export const authApi = {
       body: JSON.stringify({ username, password }),
       skipAuthRedirect: true,
     }),
+  logout: () => request<void>('/auth/logout', { method: 'POST', skipAuthRedirect: true }),
+  listUsers: (query = '') => request<User[]>(`/auth/users${query ? `?q=${encodeURIComponent(query)}` : ''}`),
+  createUser: (input: CreateUserInput) => request<User>('/auth/users', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  }),
+  authorizeOperation: (input: { currentPassword: string; operation: string; confirmation: string }) =>
+    request<OperationAuthorization>('/auth/operation-authorizations', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+}
+
+export const chatApi = {
+  listConversations: () => request<ChatConversation[]>('/chat/conversations'),
+  createPrivateConversation: (userId: string | number) => request<ChatConversation>('/chat/conversations/private', {
+    method: 'POST',
+    body: JSON.stringify({ userId }),
+  }),
+  createGroupConversation: (input: CreateGroupConversationInput) => request<ChatConversation>('/chat/conversations/group', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  }),
+  listMessages: (conversationId: string | number, before = '', limit = 100) => request<ChatMessage[]>(
+    `/chat/conversations/${encodeURIComponent(String(conversationId))}/messages?limit=${limit}${before ? `&before=${encodeURIComponent(before)}` : ''}`,
+  ),
+  sendMessage: (conversationId: string | number, body: string, clientMessageId: string) => request<ChatMessage>(`/chat/conversations/${encodeURIComponent(String(conversationId))}/messages`, {
+    method: 'POST',
+    body: JSON.stringify({ body, clientMessageId }),
+  }),
+  markRead: (conversationId: string | number) => request<void>(`/chat/conversations/${encodeURIComponent(String(conversationId))}/read`, { method: 'PATCH' }),
 }

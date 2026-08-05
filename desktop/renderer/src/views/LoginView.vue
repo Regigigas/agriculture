@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useMessage, type FormInst, type FormRules } from 'naive-ui'
 import { LockKeyhole, Sprout, UserRound } from '@lucide/vue'
@@ -16,12 +16,6 @@ const rules: FormRules = {
   username: { required: true, message: '请输入账号', trigger: 'blur' },
   password: { required: true, message: '请输入密码', trigger: 'blur' },
 }
-
-onMounted(async () => {
-  if (window.agricultureDesktop) {
-    form.password = await window.agricultureDesktop.getLocalAdminPassword()
-  }
-})
 
 async function submit() {
   await formRef.value?.validate()
@@ -50,7 +44,7 @@ async function submit() {
           <n-form-item label="密码" path="password"><n-input v-model:value="form.password" type="password" show-password-on="click" placeholder="请输入密码" @keyup.enter="submit"><template #prefix><LockKeyhole :size="17" /></template></n-input></n-form-item>
           <n-button type="primary" block attr-type="submit" :loading="auth.loading">进入管理平台</n-button>
         </n-form>
-        <p class="demo-account">{{ isDesktop ? '本机离线账号：admin（密码已自动填充）' : '演示账号 admin / admin123' }}</p>
+        <p class="demo-account">{{ isDesktop ? '本机离线账号：admin' : '演示账号 admin / admin123' }}</p>
       </div>
     </main>
   </div>

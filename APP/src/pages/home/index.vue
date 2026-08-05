@@ -8,6 +8,16 @@
       <view class="work-status"><view class="online-dot"></view><text>作业中</text></view>
     </view>
 
+    <view class="chat-entry" hover-class="chat-entry-pressed" @click="openChat">
+      <view class="chat-symbol">讯</view>
+      <view class="chat-copy">
+        <text class="chat-title">工作沟通</text>
+        <text class="chat-meta">{{ chatStore.totalUnread ? `${chatStore.totalUnread} 条消息待查看` : '查看会话与消息' }}</text>
+      </view>
+      <text v-if="chatStore.totalUnread" class="chat-unread">{{ chatStore.totalUnread > 99 ? '99+' : chatStore.totalUnread }}</text>
+      <text class="chat-arrow">›</text>
+    </view>
+
     <view v-if="farmStore.loading && !farmStore.dashboard" class="loading-state">正在同步农场数据...</view>
     <template v-else>
       <view class="weather-panel">
@@ -89,9 +99,11 @@
 import { computed } from 'vue'
 import { onPullDownRefresh, onShow } from '@dcloudio/uni-app'
 import { useAuthStore } from '../../store/auth'
+import { useChatStore } from '../../store/chat'
 import { useFarmStore } from '../../store/farm'
 
 const authStore = useAuthStore()
+const chatStore = useChatStore()
 const farmStore = useFarmStore()
 const dashboard = computed(() => farmStore.dashboard || {})
 const environment = computed(() => dashboard.value.environment || {})
@@ -112,7 +124,7 @@ onPullDownRefresh(async () => {
 
 async function refresh() {
   try {
-    await farmStore.loadHome()
+    await Promise.all([farmStore.loadHome(), chatStore.loadConversations()])
   } catch (error) {
     if (error.name !== 'UnauthorizedError') uni.showToast({ title: error.message || '数据加载失败', icon: 'none' })
   }
@@ -120,6 +132,10 @@ async function refresh() {
 
 function goTasks() {
   uni.switchTab({ url: '/pages/tasks/index' })
+}
+
+function openChat() {
+  uni.navigateTo({ url: '/pages/chat/index' })
 }
 
 function fieldName(fieldId) {
@@ -185,6 +201,28 @@ function statusText(status) {
   border-radius: 50%;
   background: #3d8b56;
 }
+
+.chat-entry {
+  display: flex;
+  min-height: 88rpx;
+  align-items: center;
+  margin-bottom: 22rpx;
+  padding: 14rpx 18rpx;
+  border: 1rpx solid #cbd8ce;
+  border-left: 6rpx solid #3f79a4;
+  border-radius: 8rpx;
+  background: #ffffff;
+}
+
+.chat-entry-pressed { background: #f0f4f1; }
+.chat-symbol { display: flex; width: 50rpx; height: 50rpx; align-items: center; justify-content: center; margin-right: 16rpx; border-radius: 6rpx; background: #e5eff8; color: #245d88; font-size: 22rpx; font-weight: 800; }
+.chat-copy { min-width: 0; flex: 1; }
+.chat-title,
+.chat-meta { display: block; }
+.chat-title { font-size: 26rpx; font-weight: 700; }
+.chat-meta { margin-top: 3rpx; color: #738078; font-size: 20rpx; }
+.chat-unread { min-width: 38rpx; height: 38rpx; padding: 0 8rpx; border-radius: 8rpx; background: #a6423b; color: #fff; font-size: 19rpx; line-height: 38rpx; text-align: center; }
+.chat-arrow { margin-left: 12rpx; color: #7c8880; font-size: 38rpx; line-height: 1; }
 
 .weather-panel {
   overflow: hidden;

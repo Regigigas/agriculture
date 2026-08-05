@@ -146,10 +146,25 @@ export const useFarmStore = defineStore('farm', () => {
     return updated
   })
 
+  function reset() {
+    dashboard.value = {}
+    fields.value = []
+    tasks.value = []
+    devices.value = []
+    alerts.value = []
+    inventory.value = []
+    inventoryTransactions.value = []
+    purchases.value = []
+    issues.value = []
+    corrections.value = []
+    for (const key of Object.keys(loading)) delete loading[key]
+    for (const key of Object.keys(errors)) delete errors[key]
+  }
+
   return {
     dashboard, fields, tasks, devices, alerts, inventory, inventoryTransactions, purchases, issues, corrections, loading, errors,
     loadDashboard, loadFields, loadTasks, loadDevices, loadAlerts, loadInventory, loadInventoryTransactions, loadPurchases, loadIssues, loadCorrections,
     createField, createTask, updateTaskStatus, acknowledgeAlert, createIssue, updateIssueStatus,
-    createInventoryItem, createInventoryTransaction, createPurchase, receivePurchase, createCorrection, updateCorrectionStatus,
+    createInventoryItem, createInventoryTransaction, createPurchase, receivePurchase, createCorrection, updateCorrectionStatus, reset,
   }
 })

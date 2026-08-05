@@ -135,6 +135,21 @@ export const useProductionStore = defineStore('production', () => {
     if (index >= 0) list[index] = updated
   }
 
+  function reset() {
+    subjects.value = []
+    farms.value = []
+    cycles.value = []
+    plans.value = []
+    logs.value = []
+    harvests.value = []
+    sales.value = []
+    documents.value = []
+    contracts.value = []
+    traceResult.value = null
+    for (const key of Object.keys(loading)) delete loading[key]
+    for (const key of Object.keys(errors)) delete errors[key]
+  }
+
   return {
     subjects, farms, cycles, plans, logs, harvests, sales, documents, contracts, traceResult, loading, errors,
     loadSubjects, loadFarms, loadCycles, loadPlans, loadLogs, loadHarvests, loadSales, loadDocuments, loadContracts,
@@ -142,6 +157,6 @@ export const useProductionStore = defineStore('production', () => {
     createSubject, updateSubjectStatus, createFarm, updateFarmStatus,
     createCycle, updateCycleStatus, createPlan, updatePlanStatus, createLog,
     createHarvest, updateHarvestQuality, createSale, updateSaleStatus, queryTrace,
-    createDocument, createContract, updateContractStatus,
+    createDocument, createContract, updateContractStatus, reset,
   }
 })
