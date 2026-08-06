@@ -41,6 +41,15 @@ export class ApplicationDatabase implements OnModuleDestroy {
       CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
       CREATE INDEX IF NOT EXISTS idx_sessions_expiry ON sessions(expires_at);
 
+      CREATE TABLE IF NOT EXISTS operation_authorizations (
+        token_hash TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        operation TEXT NOT NULL,
+        expires_at TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_operation_authorizations_expiry ON operation_authorizations(expires_at);
+
       CREATE TABLE IF NOT EXISTS conversations (
         id TEXT PRIMARY KEY,
         type TEXT NOT NULL CHECK(type IN ('private', 'group')),
@@ -72,6 +81,12 @@ export class ApplicationDatabase implements OnModuleDestroy {
       );
       CREATE INDEX IF NOT EXISTS idx_messages_conversation_time
       ON messages(conversation_id, created_at DESC, id DESC);
+
+      CREATE TABLE IF NOT EXISTS application_state (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
     `);
     this.migrateMessageIdempotency();
   }
@@ -115,6 +130,23 @@ export class ApplicationDatabase implements OnModuleDestroy {
       this.connection.exec('ROLLBACK');
       throw error;
     }
+  }
+
+  readState<T>(key: string, fallback: T): T {
+    const row = this.connection.prepare('SELECT value FROM application_state WHERE key = ?').get(key) as { value: string } | undefined;
+    if (!row) return fallback;
+    try {
+      return JSON.parse(row.value) as T;
+    } catch {
+      return fallback;
+    }
+  }
+
+  writeState(key: string, value: unknown): void {
+    this.connection.prepare(`
+      INSERT INTO application_state (key, value, updated_at) VALUES (?, ?, ?)
+      ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
+    `).run(key, JSON.stringify(value), new Date().toISOString());
   }
 
   onModuleDestroy(): void {

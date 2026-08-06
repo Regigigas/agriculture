@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld('agricultureDesktop', Object.freeze({
   getCustomBackupConfig: (accessToken) => ipcRenderer.invoke('custom-backup-config', accessToken),
   selectCustomBackupDirectory: (accessToken) => ipcRenderer.invoke('select-custom-backup-directory', accessToken),
   backupToCustomDirectory: (accessToken) => ipcRenderer.invoke('backup-to-custom-directory', accessToken),
+  openCustomBackupDirectory: (accessToken) => ipcRenderer.invoke('open-custom-backup-directory', accessToken),
   exportBackup: (accessToken, name) => ipcRenderer.invoke('export-backup', accessToken, name),
   restoreBackup: (input) => ipcRenderer.invoke('restore-backup', input),
   openBackupDirectory: (accessToken) => ipcRenderer.invoke('open-backup-directory', accessToken),

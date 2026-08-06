@@ -54,3 +54,23 @@ test('App 地块场景在移动视口渲染并切换角度', async ({ page }) =>
   if (host && toolbar) expect(toolbar.y + toolbar.height).toBeLessThanOrEqual(host.y)
   await page.screenshot({ path: join(process.env.TEMP || '.', 'agriculture-field-3d-app.png'), fullPage: true })
 })
+
+test('App 挖除作物验证弹窗适配移动视口', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 700 })
+  await page.goto(`${appUrl}/#/pages/login/index`)
+  await page.locator('input').nth(0).fill('admin')
+  await page.locator('input').nth(1).fill('admin123')
+  await page.locator('.login-button').click()
+  await page.waitForTimeout(500)
+  await page.goto(`${appUrl}/#/pages/fields/index`)
+  await page.locator('.uproot-button').first().click()
+  await expect(page.locator('.uproot-modal')).toBeVisible()
+  const modal = await page.locator('.uproot-modal').boundingBox()
+  expect(modal).not.toBeNull()
+  if (modal) {
+    expect(modal.x).toBeGreaterThanOrEqual(0)
+    expect(modal.x + modal.width).toBeLessThanOrEqual(391)
+    expect(modal.height).toBeLessThanOrEqual(602)
+  }
+  await expect(page.locator('.danger-button')).toHaveAttribute('disabled', 'true')
+})

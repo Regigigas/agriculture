@@ -3,7 +3,7 @@ export const SERVICE_MODES = Object.freeze({
   CLOUD: 'cloud'
 })
 
-export function normalizeApiBaseUrl(value) {
+export function normalizeApiBaseUrl(value, allowNetworkHttp = false) {
   const text = String(value || '').trim()
   if (!text) throw new Error('请输入服务地址')
 
@@ -16,6 +16,9 @@ export function normalizeApiBaseUrl(value) {
 
   if (!['http:', 'https:'].includes(parsed.protocol)) {
     throw new Error('服务地址仅支持 HTTP 或 HTTPS')
+  }
+  if (parsed.protocol === 'http:' && !allowNetworkHttp && !['localhost', '127.0.0.1', '[::1]'].includes(parsed.hostname)) {
+    throw new Error('线上服务必须使用 HTTPS；HTTP 仅允许 Electron 本地或本机调试地址')
   }
   if (parsed.username || parsed.password) {
     throw new Error('服务地址不能包含账号或密码')
@@ -30,8 +33,8 @@ export function normalizeApiBaseUrl(value) {
 
 export function normalizeServiceConfig(config, cloudBaseUrl) {
   const mode = config?.mode === SERVICE_MODES.LOCAL ? SERVICE_MODES.LOCAL : SERVICE_MODES.CLOUD
-  const source = mode === SERVICE_MODES.LOCAL ? config?.baseUrl : cloudBaseUrl
-  return { mode, baseUrl: normalizeApiBaseUrl(source) }
+  const source = mode === SERVICE_MODES.LOCAL ? config?.baseUrl : (config?.baseUrl || cloudBaseUrl)
+  return { mode, baseUrl: normalizeApiBaseUrl(source, mode === SERVICE_MODES.LOCAL) }
 }
 
 export function sameService(left, right) {

@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useMessage } from 'naive-ui'
-import { ArrowLeft, Check, CheckCheck, MessageCircle, Plus, RefreshCw, RotateCcw, Search, Send, UserPlus, Users } from '@lucide/vue'
+import { ArrowLeft, Check, CheckCheck, Cloud, Laptop, LogOut, MessageCircle, Plus, RefreshCw, RotateCcw, Search, Send, Settings, UserPlus, Users } from '@lucide/vue'
 import PageHeader from '@/components/PageHeader.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useChatStore } from '@/stores/chat'
 import type { ChatConversation, ChatMessage, CreateUserInput, UserRole } from '@/types'
+import { localChatBaseUrl, type ChatServiceMode } from '@/chat-service'
 
 const auth = useAuthStore()
 const chat = useChatStore()
@@ -19,15 +20,19 @@ const groupVisible = ref(false)
 const accountVisible = ref(false)
 const groupSubmitting = ref(false)
 const accountSubmitting = ref(false)
+const serviceVisible = ref(false)
 const messageList = ref<HTMLElement | null>(null)
 const groupForm = reactive<{ title: string; memberIds: Array<string | number> }>({ title: '', memberIds: [] })
 const accountForm = reactive<CreateUserInput>({ name: '', username: '', password: '', role: 'worker' })
+const serviceForm = reactive({ mode: chat.serviceConfig.mode as ChatServiceMode, baseUrl: chat.serviceConfig.baseUrl })
+const cloudLogin = reactive({ username: '', password: '' })
 const roleOptions: Array<{ label: string; value: UserRole }> = [
   { label: '工作人员', value: 'worker' },
   { label: '管理员', value: 'admin' },
 ]
 
-const isAdmin = computed(() => auth.user?.role === 'admin')
+const isAdmin = computed(() => chat.currentUser?.role === 'admin')
+const serviceLabel = computed(() => chat.serviceConfig.mode === 'local' ? 'Electron 本地聊天' : '线上聊天')
 const contacts = computed(() => chat.users.filter((user) => !isCurrentUser(user)))
 const filteredContacts = computed(() => {
   const query = contactQuery.value.trim().toLowerCase()
@@ -44,8 +49,8 @@ const groupMemberOptions = computed(() => contacts.value
   .map((user) => ({ label: `${user.name || user.username} (${user.username})`, value: user.id as string | number })))
 
 function isCurrentUser(user: { id?: string | number; username: string }) {
-  if (auth.user?.id !== undefined && user.id !== undefined) return String(user.id) === String(auth.user.id)
-  return user.username === auth.user?.username
+  if (chat.currentUser?.id !== undefined && user.id !== undefined) return String(user.id) === String(chat.currentUser.id)
+  return user.username === chat.currentUser?.username
 }
 
 function conversationTitle(conversation: ChatConversation) {
@@ -72,8 +77,8 @@ function displayMessageTime(value: string) {
 }
 
 function isOwnMessage(item: ChatMessage) {
-  if (auth.user?.id !== undefined && String(item.senderId) === String(auth.user.id)) return true
-  return item.sender?.username === auth.user?.username || String(item.senderId) === auth.user?.username
+  if (chat.currentUser?.id !== undefined && String(item.senderId) === String(chat.currentUser.id)) return true
+  return item.sender?.username === chat.currentUser?.username || String(item.senderId) === chat.currentUser?.username
 }
 
 function senderName(item: ChatMessage) {
@@ -183,6 +188,41 @@ async function refresh() {
   if (chat.error) notice.error(chat.error)
 }
 
+function openServiceDialog() {
+  Object.assign(serviceForm, chat.serviceConfig)
+  serviceVisible.value = true
+}
+
+async function saveService() {
+  try {
+    await chat.configureService({ mode: serviceForm.mode, baseUrl: serviceForm.baseUrl })
+    serviceVisible.value = false
+    notice.success(`已切换到${serviceLabel.value}`)
+  } catch (cause) {
+    notice.error(cause instanceof Error ? cause.message : '聊天服务配置无效')
+  }
+}
+
+async function loginCloudChat() {
+  if (!cloudLogin.username.trim() || !cloudLogin.password) return notice.warning('请输入线上聊天账号和密码')
+  try {
+    await chat.signInToCloud(cloudLogin.username.trim(), cloudLogin.password)
+    cloudLogin.password = ''
+    notice.success('线上聊天登录成功')
+  } catch (cause) {
+    notice.error(cause instanceof Error ? cause.message : '线上聊天登录失败')
+  }
+}
+
+async function logoutCloudChat() {
+  await chat.signOutCloud()
+  notice.success('已退出线上聊天')
+}
+
+function handleChatAuthExpired() {
+  chat.expireCloudSession()
+}
+
 async function scrollToLatest() {
   await nextTick()
   if (messageList.value) messageList.value.scrollTop = messageList.value.scrollHeight
@@ -193,27 +233,44 @@ watch(() => chat.messages.length, () => {
 })
 
 onMounted(async () => {
-  await chat.initialize()
-  chat.startPolling()
-  await scrollToLatest()
+  window.addEventListener('agriculture-chat-auth-expired', handleChatAuthExpired)
+  if (chat.serviceAuthenticated) {
+    await chat.initialize()
+    chat.startPolling()
+    await scrollToLatest()
+  }
 })
 
-onBeforeUnmount(() => chat.stopPolling())
+onBeforeUnmount(() => {
+  window.removeEventListener('agriculture-chat-auth-expired', handleChatAuthExpired)
+  chat.stopPolling()
+})
 </script>
 
 <template>
   <div class="communication-page">
     <page-header title="工作沟通" description="与生产、采购和现场团队保持同步">
-      <n-button v-if="isAdmin" secondary @click="accountVisible = true"><template #icon><UserPlus /></template>账号管理</n-button>
-      <n-button type="primary" @click="openGroupDialog"><template #icon><Plus /></template>创建群聊</n-button>
+      <n-tag :type="chat.serviceConfig.mode === 'local' ? 'success' : 'info'" :bordered="false">{{ serviceLabel }}</n-tag>
+      <n-button secondary @click="openServiceDialog"><template #icon><Settings /></template>聊天服务</n-button>
+      <n-button v-if="chat.serviceConfig.mode === 'cloud' && chat.serviceAuthenticated" quaternary circle title="退出线上聊天" aria-label="退出线上聊天" @click="logoutCloudChat"><LogOut /></n-button>
+      <n-button v-if="chat.serviceAuthenticated && isAdmin" secondary @click="accountVisible = true"><template #icon><UserPlus /></template>账号管理</n-button>
+      <n-button v-if="chat.serviceAuthenticated" type="primary" @click="openGroupDialog"><template #icon><Plus /></template>创建群聊</n-button>
     </page-header>
+
+    <section v-if="chat.serviceConfig.mode === 'cloud' && !chat.serviceAuthenticated" class="cloud-login-panel">
+      <span class="cloud-login-icon"><Cloud /></span>
+      <div><h2>登录线上聊天</h2><p>本地账号与线上账号独立管理，请使用线上服务中已经创建的账号。</p></div>
+      <n-input v-model:value="cloudLogin.username" placeholder="线上账号" @keyup.enter="loginCloudChat" />
+      <n-input v-model:value="cloudLogin.password" type="password" show-password-on="click" placeholder="线上密码" @keyup.enter="loginCloudChat" />
+      <n-button type="primary" :loading="chat.serviceLoginLoading" @click="loginCloudChat">登录聊天</n-button>
+    </section>
 
     <n-alert v-if="chat.error" class="communication-alert" type="error" :show-icon="true">
       {{ chat.error }}
       <template #action><n-button text type="error" @click="refresh">重新加载</n-button></template>
     </n-alert>
 
-    <section :class="['communication-workspace', { 'mobile-chat': mobileChatVisible }]">
+    <section v-if="chat.serviceAuthenticated" :class="['communication-workspace', { 'mobile-chat': mobileChatVisible }]">
       <aside class="navigation-pane">
         <n-tabs v-model:value="activeList" type="line" justify-content="space-evenly" pane-style="height: 100%;">
           <n-tab-pane name="conversations" tab="会话">
@@ -285,6 +342,20 @@ onBeforeUnmount(() => chat.stopPolling())
       </main>
     </section>
 
+    <n-modal v-model:show="serviceVisible" preset="card" title="聊天服务" class="communication-modal service-modal">
+      <div class="service-mode-switch">
+        <button :class="{ active: serviceForm.mode === 'local' }" @click="serviceForm.mode = 'local'"><Laptop />Electron 本地</button>
+        <button :class="{ active: serviceForm.mode === 'cloud' }" @click="serviceForm.mode = 'cloud'"><Cloud />线上服务</button>
+      </div>
+      <n-form label-placement="top" class="service-form">
+        <n-form-item :label="serviceForm.mode === 'local' ? '本地聊天地址' : '线上聊天地址'">
+          <n-input v-model:value="serviceForm.baseUrl" :disabled="serviceForm.mode === 'local'" :placeholder="serviceForm.mode === 'local' ? localChatBaseUrl() : 'https://chat.example.com/api'" />
+        </n-form-item>
+        <n-alert type="info" :bordered="false">切换聊天服务会清空当前会话视图。线上聊天使用独立账号，不会改变 Electron 本机农业数据、备份或同步配置。</n-alert>
+      </n-form>
+      <template #footer><div class="modal-actions"><n-button @click="serviceVisible = false">取消</n-button><n-button type="primary" @click="saveService">保存并切换</n-button></div></template>
+    </n-modal>
+
     <n-modal v-model:show="groupVisible" preset="card" title="创建群聊" class="communication-modal">
       <n-form label-placement="top">
         <n-form-item label="群聊名称" required><n-input v-model:value="groupForm.title" maxlength="40" show-count placeholder="例如：秋收协调组" /></n-form-item>
@@ -322,6 +393,7 @@ onBeforeUnmount(() => chat.stopPolling())
 <style scoped>
 .communication-page { min-width: 0; }
 .communication-alert { margin-bottom: 14px; }
+.cloud-login-panel { min-height: 132px; padding: 20px; display: grid; grid-template-columns: 46px minmax(220px, 1fr) minmax(150px, 210px) minmax(150px, 210px) auto; align-items: center; gap: 14px; border: 1px solid #dfe5e1; border-radius: 8px; background: #fff; }.cloud-login-icon { width: 46px; height: 46px; display: grid; place-items: center; color: #456f83; background: #e5eef2; border-radius: 7px; }.cloud-login-icon svg { width: 22px; }.cloud-login-panel h2 { margin: 0; font-size: 15px; }.cloud-login-panel p { margin: 5px 0 0; color: #7a8781; font-size: 11px; }.service-modal { width: min(560px, calc(100vw - 32px)); }.service-mode-switch { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 6px; border: 1px solid #d8dfda; border-radius: 7px; background: #eef1ef; }.service-mode-switch button { min-height: 42px; display: flex; align-items: center; justify-content: center; gap: 8px; border: 0; border-radius: 5px; background: transparent; color: #68746d; cursor: pointer; }.service-mode-switch button.active { background: #fff; color: #315f42; box-shadow: 0 1px 3px rgba(31,51,40,.12); }.service-mode-switch svg { width: 17px; }.service-form { margin-top: 18px; }
 .communication-workspace { height: calc(100vh - 200px); min-height: 520px; display: grid; grid-template-columns: 310px minmax(0, 1fr); overflow: hidden; border: 1px solid #dfe5e1; border-radius: 8px; background: #fff; }
 .navigation-pane { min-width: 0; overflow: hidden; border-right: 1px solid #e3e8e5; background: #fafbfa; }
 .navigation-pane :deep(.n-tabs) { height: 100%; display: flex; flex-direction: column; }
@@ -391,6 +463,7 @@ onBeforeUnmount(() => chat.stopPolling())
   .message-content { max-width: 78%; }
 }
 @media (max-width: 760px) {
+  .cloud-login-panel { grid-template-columns: 42px minmax(0, 1fr); }.cloud-login-panel .n-input, .cloud-login-panel .n-button { grid-column: 2; }
   .communication-workspace { height: calc(100vh - 184px); min-height: 480px; display: block; }
   .navigation-pane, .chat-pane { width: 100%; height: 100%; }
   .chat-pane { display: none; }

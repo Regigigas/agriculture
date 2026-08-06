@@ -69,6 +69,17 @@ export const useFarmStore = defineStore('farm', () => {
     return created
   })
 
+  const uprootField = (id: string | number, reason: string, operationToken: string) => run('fieldMutation', async () => {
+    const updated = await request<Field>(`/fields/${encodeURIComponent(String(id))}/uproot`, {
+      method: 'PATCH',
+      headers: { 'x-operation-authorization': operationToken },
+      body: JSON.stringify({ reason }),
+    })
+    const index = fields.value.findIndex((field) => String(field.id) === String(id))
+    if (index >= 0) fields.value[index] = updated
+    return updated
+  })
+
   const createTask = (input: CreateTaskInput) => run('taskMutation', async () => {
     const created = await request<FarmTask | undefined>('/tasks', { method: 'POST', body: JSON.stringify(input) })
     if (created?.id !== undefined) tasks.value.unshift(created)
@@ -164,7 +175,7 @@ export const useFarmStore = defineStore('farm', () => {
   return {
     dashboard, fields, tasks, devices, alerts, inventory, inventoryTransactions, purchases, issues, corrections, loading, errors,
     loadDashboard, loadFields, loadTasks, loadDevices, loadAlerts, loadInventory, loadInventoryTransactions, loadPurchases, loadIssues, loadCorrections,
-    createField, createTask, updateTaskStatus, acknowledgeAlert, createIssue, updateIssueStatus,
+    createField, uprootField, createTask, updateTaskStatus, acknowledgeAlert, createIssue, updateIssueStatus,
     createInventoryItem, createInventoryTransaction, createPurchase, receivePurchase, createCorrection, updateCorrectionStatus, reset,
   }
 })

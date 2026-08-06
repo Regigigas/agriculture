@@ -1,11 +1,19 @@
-import { Body, Controller, Get, Headers, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, ForbiddenException, Get, Headers, Param, Patch, Post } from '@nestjs/common';
 import { AgricultureService } from './agriculture.service';
-import { Alert, Device, Field, InventoryItem, PurchaseOrder, Task } from './types';
+import { ApplicationDatabase } from './application-database';
+import { Alert, Device, Field, InventoryItem, PurchaseOrder, Task, User } from './types';
+import { AuthService } from './auth/auth.service';
+import { CurrentUser } from './auth/current-user.decorator';
 import { Public } from './auth/public.decorator';
+import { Roles } from './auth/roles.decorator';
 
 @Controller()
 export class AgricultureController {
-  constructor(private readonly service: AgricultureService) {}
+  constructor(
+    private readonly service: AgricultureService,
+    private readonly auth: AuthService,
+    private readonly database: ApplicationDatabase,
+  ) {}
 
   @Get('dashboard')
   dashboard(): Record<string, unknown> {
@@ -20,6 +28,23 @@ export class AgricultureController {
   @Post('fields')
   createField(@Body() body: unknown): Field {
     return this.service.createField(body);
+  }
+
+  @Roles('admin')
+  @Patch('fields/:id/uproot')
+  uprootField(
+    @Param('id') id: string,
+    @Body() body: unknown,
+    @CurrentUser() user: User,
+    @Headers('x-operation-authorization') operationAuthorization = '',
+  ): Field {
+    this.service.validateUprootField(id, body);
+    return this.database.transaction(() => {
+      if (!this.auth.consumeOperationAuthorization(user.id, 'uproot-crop', operationAuthorization)) {
+        throw new ForbiddenException('高危操作授权无效、已使用或已过期');
+      }
+      return this.service.uprootField(id, body);
+    });
   }
 
   @Get('tasks')

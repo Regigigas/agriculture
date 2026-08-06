@@ -1,8 +1,9 @@
-import { Injectable, OnModuleDestroy } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { randomUUID } from 'crypto';
-import { mkdirSync } from 'fs';
+import { existsSync } from 'fs';
 import { DatabaseSync } from 'node:sqlite';
-import { resolve } from 'path';
+import { dirname, resolve } from 'path';
+import { ApplicationDatabase } from './application-database';
 import { SyncChange, SyncEvent, SyncExchangeResponse, SyncResult } from './sync.types';
 
 interface EntityRow {
@@ -24,21 +25,24 @@ interface ChangeRow {
   changedAt: string;
 }
 
+const APPLICATION_STATE_KEYS: Partial<Record<SyncChange['collection'], string>> = {
+  fields: 'agriculture.fields',
+  tasks: 'agriculture.tasks',
+  devices: 'agriculture.devices',
+  alerts: 'agriculture.alerts',
+  inventory: 'agriculture.inventory',
+  purchases: 'agriculture.purchases',
+};
+
 @Injectable()
-export class SyncDatabase implements OnModuleDestroy {
+export class SyncDatabase {
   private readonly database: DatabaseSync;
   readonly filePath: string;
 
-  constructor() {
-    const dataDirectory = resolve(process.env.AGRI_CLOUD_DATA_DIR ?? resolve(process.cwd(), 'data'));
-    mkdirSync(dataDirectory, { recursive: true });
-    this.filePath = resolve(dataDirectory, 'cloud-sync.db');
-    this.database = new DatabaseSync(this.filePath);
+  constructor(private readonly applicationDatabase: ApplicationDatabase) {
+    this.filePath = applicationDatabase.filePath;
+    this.database = applicationDatabase.connection;
     this.database.exec(`
-      PRAGMA journal_mode = WAL;
-      PRAGMA busy_timeout = 5000;
-      PRAGMA synchronous = NORMAL;
-
       CREATE TABLE IF NOT EXISTS metadata (
         key TEXT PRIMARY KEY,
         value TEXT NOT NULL
@@ -73,7 +77,14 @@ export class SyncDatabase implements OnModuleDestroy {
         created_at TEXT NOT NULL,
         PRIMARY KEY (client_id, event_id)
       );
+
+      CREATE TABLE IF NOT EXISTS uprooted_fields (
+        field_id TEXT PRIMARY KEY,
+        updated_at TEXT NOT NULL
+      );
     `);
+    this.migrateLegacyDatabase();
+    this.projectExistingEntities();
   }
 
   serverId(): string {
@@ -137,7 +148,8 @@ export class SyncDatabase implements OnModuleDestroy {
     } else {
       const revision = currentRevision + 1;
       const changedAt = new Date().toISOString();
-      const payload = JSON.stringify(event.payload);
+      const normalizedPayload = this.normalizeUprootedState(event.collection, event.payload, changedAt);
+      const payload = JSON.stringify(normalizedPayload);
       this.database.prepare(`
         INSERT INTO sync_entities (collection, entity_id, payload, revision, source_client_id, updated_at)
         VALUES (?, ?, ?, ?, ?, ?)
@@ -151,7 +163,12 @@ export class SyncDatabase implements OnModuleDestroy {
         INSERT INTO sync_changes (collection, entity_id, revision, payload, source_client_id, changed_at)
         VALUES (?, ?, ?, ?, ?, ?)
       `).run(event.collection, event.entityId, revision, payload, clientId, changedAt);
-      result = { eventId: event.eventId, status: 'accepted', revision, payload: event.payload };
+      this.projectApplicationEntity(event.collection, normalizedPayload);
+      if (event.collection === 'fields' && this.isUprootedField(normalizedPayload)) {
+        this.markUprooted(event.entityId, changedAt);
+        this.cancelRelatedProduction(event.entityId, changedAt);
+      }
+      result = { eventId: event.eventId, status: 'accepted', revision, payload: normalizedPayload };
     }
 
     this.database.prepare(`
@@ -161,19 +178,130 @@ export class SyncDatabase implements OnModuleDestroy {
     return result;
   }
 
-  private transaction<T>(operation: () => T): T {
-    this.database.exec('BEGIN IMMEDIATE');
-    try {
-      const result = operation();
-      this.database.exec('COMMIT');
-      return result;
-    } catch (error) {
-      this.database.exec('ROLLBACK');
-      throw error;
+  recordUproot(fieldId: string, updatedField: Record<string, unknown>, changedAt: string): void {
+    this.markUprooted(fieldId, changedAt);
+    const current = this.entity('fields', fieldId);
+    this.writeServerChange('fields', fieldId, { ...current?.payload, ...updatedField, crop: '', status: 'fallow' }, changedAt);
+    this.cancelRelatedProduction(fieldId, changedAt);
+  }
+
+  recordEntity(collection: SyncChange['collection'], payload: Record<string, unknown>, changedAt = new Date().toISOString()): void {
+    const entityId = String(payload.id ?? '');
+    if (!entityId) throw new Error(`同步集合 ${collection} 的记录缺少 id`);
+    this.writeServerChange(collection, entityId, payload, changedAt);
+  }
+
+  private normalizeUprootedState(collection: SyncChange['collection'], payload: Record<string, unknown>, changedAt: string): Record<string, unknown> {
+    const fieldId = collection === 'fields' ? String(payload.id ?? '') : String(payload.fieldId ?? '');
+    if (!fieldId || !this.isMarkedUprooted(fieldId)) return payload;
+    if (collection === 'fields') return { ...payload, crop: '', status: 'fallow' };
+    if (collection === 'crop_cycles' && ['planned', 'in_progress', 'harvesting'].includes(String(payload.status))) {
+      return { ...payload, status: 'cancelled', updatedAt: changedAt };
+    }
+    if (collection === 'production_plans' && ['planned', 'in_progress'].includes(String(payload.status))) {
+      return { ...payload, status: 'cancelled', updatedAt: changedAt, completedAt: null };
+    }
+    return payload;
+  }
+
+  private cancelRelatedProduction(fieldId: string, changedAt: string): void {
+    const cycles = this.entities('crop_cycles').filter((item) => item.payload.fieldId === fieldId && ['planned', 'in_progress', 'harvesting'].includes(String(item.payload.status)));
+    const cycleIds = new Set(cycles.map((item) => item.entityId));
+    const plans = this.entities('production_plans').filter((item) => (item.payload.fieldId === fieldId || cycleIds.has(String(item.payload.cycleId))) && ['planned', 'in_progress'].includes(String(item.payload.status)));
+    for (const cycle of cycles) this.writeServerChange('crop_cycles', cycle.entityId, { ...cycle.payload, status: 'cancelled', updatedAt: changedAt }, changedAt);
+    for (const plan of plans) this.writeServerChange('production_plans', plan.entityId, { ...plan.payload, status: 'cancelled', updatedAt: changedAt, completedAt: null }, changedAt);
+  }
+
+  private writeServerChange(collection: SyncChange['collection'], entityId: string, payload: Record<string, unknown>, changedAt: string): void {
+    const current = this.entity(collection, entityId);
+    const revision = (current?.revision ?? 0) + 1;
+    const serialized = JSON.stringify(payload);
+    this.database.prepare(`
+      INSERT INTO sync_entities (collection, entity_id, payload, revision, source_client_id, updated_at)
+      VALUES (?, ?, ?, ?, 'cloud-api', ?)
+      ON CONFLICT(collection, entity_id) DO UPDATE SET
+        payload = excluded.payload,
+        revision = excluded.revision,
+        source_client_id = excluded.source_client_id,
+        updated_at = excluded.updated_at
+    `).run(collection, entityId, serialized, revision, changedAt);
+    this.database.prepare(`
+      INSERT INTO sync_changes (collection, entity_id, revision, payload, source_client_id, changed_at)
+      VALUES (?, ?, ?, ?, 'cloud-api', ?)
+    `).run(collection, entityId, revision, serialized, changedAt);
+    this.projectApplicationEntity(collection, payload);
+  }
+
+  private entity(collection: SyncChange['collection'], entityId: string): { payload: Record<string, unknown>; revision: number } | undefined {
+    const row = this.database.prepare('SELECT payload, revision FROM sync_entities WHERE collection = ? AND entity_id = ?')
+      .get(collection, entityId) as EntityRow | undefined;
+    return row ? { payload: JSON.parse(row.payload) as Record<string, unknown>, revision: row.revision } : undefined;
+  }
+
+  private entities(collection: SyncChange['collection']): Array<{ entityId: string; payload: Record<string, unknown> }> {
+    const rows = this.database.prepare('SELECT entity_id AS entityId, payload FROM sync_entities WHERE collection = ?')
+      .all(collection) as unknown as Array<{ entityId: string; payload: string }>;
+    return rows.map((row) => ({ entityId: row.entityId, payload: JSON.parse(row.payload) as Record<string, unknown> }));
+  }
+
+  private isUprootedField(payload: Record<string, unknown>): boolean {
+    return payload.status === 'fallow' && !payload.crop;
+  }
+
+  private isMarkedUprooted(fieldId: string): boolean {
+    return Boolean(this.database.prepare('SELECT 1 FROM uprooted_fields WHERE field_id = ?').get(fieldId));
+  }
+
+  private markUprooted(fieldId: string, changedAt: string): void {
+    this.database.prepare(`
+      INSERT INTO uprooted_fields (field_id, updated_at) VALUES (?, ?)
+      ON CONFLICT(field_id) DO UPDATE SET updated_at = excluded.updated_at
+    `).run(fieldId, changedAt);
+  }
+
+  private projectApplicationEntity(collection: SyncChange['collection'], payload: Record<string, unknown>): void {
+    const stateKey = APPLICATION_STATE_KEYS[collection];
+    const entityId = String(payload.id ?? '');
+    if (!stateKey || !entityId) return;
+    const current = this.applicationDatabase.readState<Record<string, unknown>[]>(stateKey, []);
+    const next = current.some((item) => item.id === entityId)
+      ? current.map((item) => item.id === entityId ? payload : item)
+      : [...current, payload];
+    this.applicationDatabase.writeState(stateKey, next);
+  }
+
+  private projectExistingEntities(): void {
+    for (const [collection, stateKey] of Object.entries(APPLICATION_STATE_KEYS) as Array<[SyncChange['collection'], string]>) {
+      const entities = this.entities(collection);
+      if (!entities.length) continue;
+      const current = this.applicationDatabase.readState<Record<string, unknown>[]>(stateKey, []);
+      const merged = new Map(current.map((item) => [String(item.id), item]));
+      for (const entity of entities) merged.set(entity.entityId, entity.payload);
+      this.applicationDatabase.writeState(stateKey, [...merged.values()]);
     }
   }
 
-  onModuleDestroy(): void {
-    this.database.close();
+  private transaction<T>(operation: () => T): T {
+    return this.applicationDatabase.transaction(operation);
+  }
+
+  private migrateLegacyDatabase(): void {
+    const legacyPath = resolve(dirname(this.filePath), 'cloud-sync.db');
+    if (!existsSync(legacyPath) || resolve(legacyPath) === resolve(this.filePath)) return;
+    this.database.prepare('ATTACH DATABASE ? AS legacy_sync').run(legacyPath);
+    try {
+      const available = this.database.prepare("SELECT 1 FROM legacy_sync.sqlite_master WHERE type = 'table' AND name = 'sync_entities'").get();
+      if (!available) return;
+      this.transaction(() => {
+        this.database.exec(`
+          INSERT OR IGNORE INTO metadata SELECT * FROM legacy_sync.metadata;
+          INSERT OR IGNORE INTO sync_entities SELECT * FROM legacy_sync.sync_entities;
+          INSERT OR IGNORE INTO sync_changes SELECT * FROM legacy_sync.sync_changes;
+          INSERT OR IGNORE INTO processed_sync_events SELECT * FROM legacy_sync.processed_sync_events;
+        `);
+      });
+    } finally {
+      this.database.exec('DETACH DATABASE legacy_sync');
+    }
   }
 }

@@ -13,6 +13,7 @@ interface Window {
     getCustomBackupConfig(accessToken: string): Promise<{ directory: string; available: boolean }>
     selectCustomBackupDirectory(accessToken: string): Promise<{ canceled: boolean; directory?: string }>
     backupToCustomDirectory(accessToken: string): Promise<{ name: string; filePath: string; size: number; createdAt: string }>
+    openCustomBackupDirectory(accessToken: string): Promise<void>
     exportBackup(accessToken: string, name: string): Promise<{ canceled: boolean; filePath?: string }>
     restoreBackup(input: { name: string; accessToken: string; operationToken: string }): Promise<{ scheduled: boolean }>
     openBackupDirectory(accessToken: string): Promise<void>

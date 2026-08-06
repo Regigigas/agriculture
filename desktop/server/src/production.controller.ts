@@ -1,5 +1,10 @@
-import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Param, Patch, Post } from '@nestjs/common';
+import { AuthService } from './auth/auth.service';
+import { CurrentUser } from './auth/current-user.decorator';
+import { Roles } from './auth/roles.decorator';
 import { ProductionService } from './production.service';
+import { LocalDatabase } from './local-database';
+import { Field, User } from './types';
 import {
   BusinessSubject,
   ComplianceDocument,
@@ -15,7 +20,11 @@ import {
 
 @Controller()
 export class ProductionController {
-  constructor(private readonly service: ProductionService) {}
+  constructor(
+    private readonly service: ProductionService,
+    private readonly auth: AuthService,
+    private readonly database: LocalDatabase,
+  ) {}
 
   @Get('subjects') subjects(): BusinessSubject[] { return this.service.getSubjects(); }
   @Post('subjects') createSubject(@Body() body: unknown): BusinessSubject { return this.service.createSubject(body); }
@@ -28,6 +37,21 @@ export class ProductionController {
   @Get('crop-cycles') cycles(): CropCycle[] { return this.service.getCycles(); }
   @Post('crop-cycles') createCycle(@Body() body: unknown): CropCycle { return this.service.createCycle(body); }
   @Patch('crop-cycles/:id/status') updateCycleStatus(@Param('id') id: string, @Body() body: unknown): CropCycle { return this.service.updateCycleStatus(id, body); }
+
+  @Roles('admin')
+  @Patch('fields/:id/uproot')
+  uprootField(
+    @Param('id') id: string,
+    @Body() body: unknown,
+    @CurrentUser() user: User,
+    @Headers('x-operation-authorization') operationAuthorization = '',
+  ): Field {
+    this.service.validateUprootField(id, body);
+    return this.database.transaction(() => {
+      this.auth.consumeOperationAuthorization(user.id, 'uproot-crop', operationAuthorization);
+      return this.service.uprootField(id, body);
+    });
+  }
 
   @Get('production-plans') plans(): ProductionPlan[] { return this.service.getPlans(); }
   @Post('production-plans') createPlan(@Body() body: unknown): ProductionPlan { return this.service.createPlan(body); }

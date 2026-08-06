@@ -622,6 +622,14 @@ if (!app.requestSingleInstanceLock()) {
           throw error
         }
       })
+      ipcMain.handle('open-custom-backup-directory', async (event, accessToken) => {
+        const sourceUrl = event.senderFrame?.url || event.sender.getURL()
+        if (!trustedRendererUrl(sourceUrl)) throw new Error('不允许的镜像备份目录请求来源')
+        await requireAdminAccess(accessToken)
+        const directory = validateCustomBackupDirectory(localSecrets?.customBackupDirectory)
+        const error = await shell.openPath(directory)
+        if (error) throw new Error(error)
+      })
       ipcMain.handle('set-cloud-sync-config', async (event, accessToken, input) => {
         const sourceUrl = event.senderFrame?.url || event.sender.getURL()
         if (!trustedRendererUrl(sourceUrl)) throw new Error('不允许的云同步配置请求来源')

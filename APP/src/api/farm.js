@@ -8,6 +8,15 @@ export const getInventory = () => request({ url: '/inventory' })
 export const getPurchases = () => request({ url: '/purchases' })
 export const getHealth = () => request({ url: '/health' })
 
+export function uprootField(id, reason, operationToken) {
+  return request({
+    url: `/fields/${encodeURIComponent(id)}/uproot`,
+    method: 'PATCH',
+    data: { reason },
+    header: { 'x-operation-authorization': operationToken }
+  })
+}
+
 export function createPurchase(data) {
   return request({ url: '/purchases', method: 'POST', data })
 }

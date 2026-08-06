@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { createPurchase, getDashboard, getDevices, getFields, getInventory, getPurchases, getTasks, receivePurchase, updateTaskStatus } from '../api/farm'
+import { createPurchase, getDashboard, getDevices, getFields, getInventory, getPurchases, getTasks, receivePurchase, updateTaskStatus, uprootField } from '../api/farm'
 
 function payloadOf(result) {
   return result?.data ?? result
@@ -61,6 +61,17 @@ export const useFarmStore = defineStore('farm', {
       this.loading = true
       try {
         this.fields = listOf(await getFields(), 'fields')
+      } finally {
+        this.loading = false
+      }
+    },
+    async uproot(field, reason, operationToken) {
+      this.loading = true
+      try {
+        const updated = payloadOf(await uprootField(field.id, reason, operationToken))
+        const index = this.fields.findIndex((item) => String(item.id) === String(field.id))
+        if (index !== -1 && updated?.id) this.fields[index] = updated
+        return updated
       } finally {
         this.loading = false
       }

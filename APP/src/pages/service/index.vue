@@ -6,8 +6,8 @@
     </view>
 
     <view class="mode-switch" role="group">
-      <button class="mode-button" :class="{ active: form.mode === 'local' }" @click="form.mode = 'local'">Electron 本地</button>
-      <button class="mode-button" :class="{ active: form.mode === 'cloud' }" @click="form.mode = 'cloud'">线上</button>
+      <button class="mode-button" :class="{ active: form.mode === 'local' }" @click="selectMode('local')">Electron 本地</button>
+      <button class="mode-button" :class="{ active: form.mode === 'cloud' }" @click="selectMode('cloud')">线上</button>
     </view>
 
     <view class="surface config-panel">
@@ -25,8 +25,15 @@
       </template>
       <template v-else>
         <text class="field-label">线上服务地址</text>
-        <text class="cloud-url">{{ cloudBaseUrl }}</text>
-        <text class="field-help">线上地址由构建环境 VITE_API_BASE_URL 提供</text>
+        <input
+          v-model.trim="form.baseUrl"
+          class="field-input"
+          type="text"
+          :placeholder="cloudBaseUrl"
+          confirm-type="done"
+          @confirm="save"
+        />
+        <text class="field-help">可使用构建默认地址，也可填写实际部署的线上 API 地址</text>
       </template>
     </view>
 
@@ -35,7 +42,7 @@
 </template>
 
 <script setup>
-import { reactive } from 'vue'
+import { reactive, watch } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { useAuthStore } from '../../store/auth'
 import { CLOUD_API_BASE_URL, getServiceConfig, saveServiceConfig } from '../../utils/service-config'
@@ -45,8 +52,19 @@ const authStore = useAuthStore()
 const cloudBaseUrl = CLOUD_API_BASE_URL
 const original = getServiceConfig()
 const form = reactive({ ...original })
+const drafts = reactive({
+  local: original.mode === 'local' ? original.baseUrl : '',
+  cloud: original.mode === 'cloud' ? original.baseUrl : cloudBaseUrl
+})
+
+watch(() => form.baseUrl, (value) => { drafts[form.mode] = value })
 
 onLoad(() => authStore.restoreSession())
+
+function selectMode(mode) {
+  form.mode = mode
+  form.baseUrl = drafts[mode]
+}
 
 function save() {
   let next

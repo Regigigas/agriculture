@@ -2,6 +2,7 @@ import { HttpException, HttpStatus, Injectable, NotFoundException } from '@nestj
 import { randomUUID } from 'crypto';
 import { AgricultureService } from './agriculture.service';
 import { LocalDatabase } from './local-database';
+import { Field } from './types';
 import {
   ActiveStatus,
   BusinessSubject,
@@ -87,6 +88,24 @@ export class ProductionService {
     this.salesOrders = this.database.loadCollection('sales_orders', this.salesOrders);
     this.documents = this.database.loadCollection('compliance_documents', this.documents);
     this.contracts = this.database.loadCollection('farm_contracts', this.contracts);
+    this.repairUprootedFieldState();
+  }
+
+  private repairUprootedFieldState(): void {
+    const uprootedFieldIds = new Set(this.agriculture.getFields()
+      .filter((field) => field.status === 'fallow' && !field.crop)
+      .map((field) => field.id));
+    const activeCycles = this.cycles.filter((cycle) => uprootedFieldIds.has(cycle.fieldId) && ['planned', 'in_progress', 'harvesting'].includes(cycle.status));
+    if (!activeCycles.length) return;
+    const now = new Date().toISOString();
+    const cycleIds = new Set(activeCycles.map((cycle) => cycle.id));
+    const openPlans = this.plans.filter((plan) => cycleIds.has(plan.cycleId) && ['planned', 'in_progress'].includes(plan.status));
+    this.database.transaction(() => {
+      for (const cycle of activeCycles) this.database.put('crop_cycles', { ...cycle, status: 'cancelled', updatedAt: now });
+      for (const plan of openPlans) this.database.put('production_plans', { ...plan, status: 'cancelled', updatedAt: now, completedAt: null });
+    });
+    for (const cycle of activeCycles) Object.assign(cycle, { status: 'cancelled', updatedAt: now });
+    for (const plan of openPlans) Object.assign(plan, { status: 'cancelled', updatedAt: now, completedAt: null });
   }
 
   getSubjects(): BusinessSubject[] { return [...this.subjects].sort((a, b) => a.name.localeCompare(b.name, 'zh-CN')); }
@@ -290,6 +309,40 @@ export class ProductionService {
     Object.assign(cycle, updated);
     for (const cancelled of cancelledPlans) Object.assign(this.requirePlan(cancelled.id), cancelled);
     return cycle;
+  }
+
+  uprootField(fieldId: string, body: unknown): Field {
+    const { field, reason } = this.validateUprootField(fieldId, body);
+
+    const now = new Date().toISOString();
+    const activeCycles = this.cycles.filter((cycle) => cycle.fieldId === fieldId && ['planned', 'in_progress', 'harvesting'].includes(cycle.status));
+    const cycleIds = new Set(activeCycles.map((cycle) => cycle.id));
+    const openPlans = this.plans.filter((plan) => cycleIds.has(plan.cycleId) && ['planned', 'in_progress'].includes(plan.status));
+    const updatedCycles = activeCycles.map((cycle) => ({ ...cycle, status: 'cancelled' as const, updatedAt: now }));
+    const updatedPlans = openPlans.map((plan) => ({ ...plan, status: 'cancelled' as const, updatedAt: now, completedAt: null }));
+    const updatedField: Field = { ...field, crop: '', status: 'fallow' };
+
+    this.database.transaction(() => {
+      this.database.put('fields', updatedField);
+      for (const cycle of updatedCycles) this.database.put('crop_cycles', cycle);
+      for (const plan of updatedPlans) this.database.put('production_plans', plan);
+      this.database.appendAudit('field', field.id, 'uproot', `${field.crop}；原因：${reason}`);
+      for (const cycle of updatedCycles) this.database.appendAudit('crop_cycle', cycle.id, 'status:cancelled', '作物挖除');
+      for (const plan of updatedPlans) this.database.appendAudit('production_plan', plan.id, 'status:cancelled', '作物挖除');
+    });
+    Object.assign(field, updatedField);
+    for (const updated of updatedCycles) Object.assign(this.requireCycle(updated.id), updated);
+    for (const updated of updatedPlans) Object.assign(this.requirePlan(updated.id), updated);
+    return field;
+  }
+
+  validateUprootField(fieldId: string, body: unknown): { field: Field; reason: string } {
+    const reason = this.required(this.objectBody(body), 'reason', 300);
+    if (reason.length < 4) throw new HttpException('请填写至少 4 个字符的挖除原因', HttpStatus.BAD_REQUEST);
+    const field = this.agriculture.getFields().find((item) => item.id === fieldId);
+    if (!field) throw new NotFoundException(`地块 ${fieldId} 不存在`);
+    if (field.status === 'fallow' && !field.crop) throw new HttpException('该地块当前没有可挖除作物', HttpStatus.CONFLICT);
+    return { field, reason };
   }
 
   createPlan(body: unknown): ProductionPlan {

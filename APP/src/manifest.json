@@ -2,8 +2,8 @@
   "name": "田间管理",
   "appid": "__UNI__AGRICULTURE",
   "description": "农业巡田与地块管理应用",
-  "versionName": "1.0.0-beta.2",
-  "versionCode": "102",
+  "versionName": "1.0.0-beta.3",
+  "versionCode": "103",
   "transformPx": false,
   "app-plus": {
     "usingComponents": true,

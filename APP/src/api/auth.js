@@ -41,3 +41,7 @@ export function changePassword(passwords) {
 export function searchUsers(query = '') {
   return request({ url: `/auth/users?q=${encodeURIComponent(query)}` })
 }
+
+export function authorizeOperation(data) {
+  return request({ url: '/auth/operation-authorizations', method: 'POST', data })
+}

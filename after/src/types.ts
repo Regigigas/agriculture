@@ -13,6 +13,7 @@ export interface User {
 
 export interface Field {
   id: string;
+  farmId: string;
   name: string;
   crop: string;
   area: number;

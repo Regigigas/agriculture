@@ -17,12 +17,6 @@ export const OPERATION_CONFIRMATIONS = {
 
 export type ProtectedOperation = keyof typeof OPERATION_CONFIRMATIONS;
 
-interface OperationAuthorization {
-  userId: string;
-  operation: ProtectedOperation;
-  expiresAt: number;
-}
-
 interface UserRow {
   id: string;
   username: string;
@@ -34,8 +28,6 @@ interface UserRow {
 
 @Injectable()
 export class AuthService {
-  private readonly operationAuthorizations = new Map<string, OperationAuthorization>();
-
   constructor(private readonly database: ApplicationDatabase) {
     this.ensureAdministrator();
   }
@@ -80,21 +72,24 @@ export class AuthService {
       throw new BadRequestException('确认短语不匹配');
     }
     const token = randomBytes(32).toString('base64url');
-    const expiresAt = Date.now() + 5 * 60 * 1000;
-    this.purgeExpiredOperationAuthorizations();
-    this.operationAuthorizations.set(this.tokenHash(token), { userId, operation, expiresAt });
-    return { token, expiresAt: new Date(expiresAt).toISOString() };
+    const createdAt = new Date();
+    const expiresAt = new Date(createdAt.getTime() + 5 * 60 * 1000);
+    this.database.transaction(() => {
+      this.database.connection.prepare('DELETE FROM operation_authorizations WHERE expires_at <= ?').run(createdAt.toISOString());
+      this.database.connection.prepare(`
+        INSERT INTO operation_authorizations (token_hash, user_id, operation, expires_at, created_at)
+        VALUES (?, ?, ?, ?, ?)
+      `).run(this.tokenHash(token), userId, operation, expiresAt.toISOString(), createdAt.toISOString());
+    });
+    return { token, expiresAt: expiresAt.toISOString() };
   }
 
   consumeOperationAuthorization(userId: string, operation: ProtectedOperation, token: string): boolean {
     if (!this.isProtectedOperation(operation) || typeof token !== 'string' || !token) return false;
-    const tokenHash = this.tokenHash(token);
-    const authorization = this.operationAuthorizations.get(tokenHash);
-    if (!authorization) return false;
-    this.operationAuthorizations.delete(tokenHash);
-    return authorization.expiresAt > Date.now()
-      && authorization.userId === userId
-      && authorization.operation === operation;
+    return this.database.transaction(() => this.database.connection.prepare(`
+      DELETE FROM operation_authorizations
+      WHERE token_hash = ? AND user_id = ? AND operation = ? AND expires_at > ?
+    `).run(this.tokenHash(token), userId, operation, new Date().toISOString()).changes === 1);
   }
 
   private insertUser(input: Record<string, unknown>, role: UserRole): User {
@@ -149,6 +144,7 @@ export class AuthService {
         UPDATE users SET password_hash = ?, password_salt = ?, updated_at = ? WHERE id = ?
       `).run(this.hashPassword(newPassword, salt), salt, new Date().toISOString(), userId);
       this.database.connection.prepare('DELETE FROM sessions WHERE user_id = ?').run(userId);
+      this.database.connection.prepare('DELETE FROM operation_authorizations WHERE user_id = ?').run(userId);
     });
   }
 
@@ -179,13 +175,6 @@ export class AuthService {
 
   private isProtectedOperation(value: unknown): value is ProtectedOperation {
     return typeof value === 'string' && Object.prototype.hasOwnProperty.call(OPERATION_CONFIRMATIONS, value);
-  }
-
-  private purgeExpiredOperationAuthorizations(): void {
-    const now = Date.now();
-    for (const [tokenHash, authorization] of this.operationAuthorizations) {
-      if (authorization.expiresAt <= now) this.operationAuthorizations.delete(tokenHash);
-    }
   }
 
   private createSession(userId: string): string {

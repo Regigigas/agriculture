@@ -8,8 +8,11 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { AuthController } from '../src/auth/auth.controller';
 import { AuthGuard } from '../src/auth/auth.guard';
 import { AuthService } from '../src/auth/auth.service';
+import { AgricultureService } from '../src/agriculture.service';
 import { ChatService } from '../src/chat/chat.service';
 import { LocalDatabase } from '../src/local-database';
+import { ProductionController } from '../src/production.controller';
+import { ProductionService } from '../src/production.service';
 import { SystemController } from '../src/system.controller';
 import { SyncController } from '../src/sync.controller';
 import { ROLES_KEY } from '../src/auth/roles.decorator';
@@ -130,6 +133,28 @@ describe('本地账号、权限与聊天', () => {
     expect(() => controller.localSync(
       { importId: '12345678-1234-4123-8123-123456789abc', sourceName: 'test.db' }, admin, '',
     )).toThrow('缺少高危操作授权');
+  });
+
+  it('挖除作物要求管理员多重验证并原子取消关联生产记录', () => {
+    const agriculture = new AgricultureService(database);
+    const production = new ProductionService(database, agriculture);
+    const controller = new ProductionController(production, auth, database);
+    const admin = auth.login('admin', 'Admin12345').user;
+    expect(Reflect.getMetadata(ROLES_KEY, ProductionController.prototype.uprootField)).toEqual(['admin']);
+    expect(() => controller.uprootField('field-002', { reason: '严重病害需要改种' }, admin, ''))
+      .toThrow('缺少高危操作授权');
+
+    const authorization = auth.createOperationAuthorization(
+      admin, 'Admin12345', 'uproot-crop', 'UPROOT CROP',
+    );
+    expect(() => controller.uprootField('field-002', { reason: '短' }, admin, authorization.token))
+      .toThrow('至少 4 个字符');
+    const field = controller.uprootField('field-002', { reason: '严重病害需要改种' }, admin, authorization.token);
+    expect(field).toMatchObject({ id: 'field-002', crop: '', status: 'fallow' });
+    expect(production.getCycles().find((cycle) => cycle.id === 'cycle-001')?.status).toBe('cancelled');
+    expect(production.getPlans().find((plan) => plan.id === 'plan-001')?.status).toBe('cancelled');
+    expect(() => controller.uprootField('field-003', { reason: '轮作调整需要改种' }, admin, authorization.token))
+      .toThrow('已使用');
   });
 
   it('账号和聊天表随 agriculture.db 备份', () => {

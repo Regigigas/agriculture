@@ -45,19 +45,40 @@
           <text class="growth-stage">{{ growthStage(field) }}</text>
         </view>
         <view class="scene-entry"><text>查看三维地块</text><text class="scene-arrow">›</text></view>
+        <button v-if="isAdmin && field.crop && field.status !== 'fallow'" class="uproot-button" @click.stop="openUproot(field)">挖除作物</button>
       </view>
       <view v-if="!farmStore.fields.length" class="surface empty-state">暂无地块数据</view>
+    </view>
+
+    <view v-if="uproot.show" class="modal-mask" @click.self="closeUproot">
+      <view class="uproot-modal surface">
+        <text class="uproot-title">挖除作物多重验证</text>
+        <text class="uproot-warning">将挖除“{{ uproot.field?.name }}”的“{{ uproot.field?.crop }}”并转为休耕，操作记录会保留。</text>
+        <text class="modal-label">挖除原因</text>
+        <textarea v-model.trim="uproot.reason" class="modal-textarea" maxlength="300" placeholder="说明病害、改种或其他原因" />
+        <text class="modal-label">当前管理员密码</text>
+        <input v-model="uproot.currentPassword" class="modal-input" password placeholder="请输入当前密码" />
+        <text class="modal-label">确认短语 UPROOT CROP</text>
+        <input v-model.trim="uproot.confirmation" class="modal-input" placeholder="UPROOT CROP" />
+        <view class="modal-actions"><button class="cancel-button" :disabled="uproot.busy" @click="closeUproot">取消</button><button class="danger-button" :disabled="!canUproot || uproot.busy" @click="confirmUproot">{{ uproot.busy ? '正在验证...' : '验证并挖除' }}</button></view>
+      </view>
     </view>
   </view>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, reactive } from 'vue'
 import { onPullDownRefresh, onShow } from '@dcloudio/uni-app'
+import { authorizeOperation } from '../../api/auth'
+import { useAuthStore } from '../../store/auth'
 import { useFarmStore } from '../../store/farm'
 
 const farmStore = useFarmStore()
+const authStore = useAuthStore()
 const totalArea = computed(() => farmStore.fields.reduce((sum, field) => sum + (Number(field.area) || 0), 0).toFixed(1).replace('.0', ''))
+const isAdmin = computed(() => String(authStore.user?.role || '').toLowerCase() === 'admin')
+const uproot = reactive({ show: false, field: null, reason: '', currentPassword: '', confirmation: '', busy: false })
+const canUproot = computed(() => uproot.reason.length >= 4 && uproot.currentPassword && uproot.confirmation === 'UPROOT CROP')
 
 onShow(refresh)
 onPullDownRefresh(async () => {
@@ -66,10 +87,35 @@ onPullDownRefresh(async () => {
 })
 
 async function refresh() {
+  authStore.restoreSession()
   try {
     await farmStore.loadFields()
   } catch (error) {
     if (error.name !== 'UnauthorizedError') uni.showToast({ title: error.message || '地块加载失败', icon: 'none' })
+  }
+}
+
+function openUproot(field) {
+  Object.assign(uproot, { show: true, field, reason: '', currentPassword: '', confirmation: '', busy: false })
+}
+
+function closeUproot() {
+  if (!uproot.busy) uproot.show = false
+}
+
+async function confirmUproot() {
+  if (!canUproot.value || uproot.busy) return
+  uproot.busy = true
+  try {
+    const result = await authorizeOperation({ currentPassword: uproot.currentPassword, operation: 'uproot-crop', confirmation: uproot.confirmation })
+    const authorization = result?.data || result
+    await farmStore.uproot(uproot.field, uproot.reason, authorization.token)
+    uproot.show = false
+    uni.showToast({ title: '作物已挖除', icon: 'success' })
+  } catch (error) {
+    uni.showToast({ title: error.message || '挖除作物失败', icon: 'none' })
+  } finally {
+    uproot.busy = false
   }
 }
 
@@ -157,6 +203,7 @@ function growthStage(field) {
 }
 
 .field-card-pressed { opacity: 0.82; }
+.uproot-button { height: 66rpx; margin: 0; border-radius: 0; border-top: 1rpx solid #ead7d4; background: #fff7f6; color: #a43e37; font-size: 24rpx; line-height: 66rpx; }.modal-mask { position: fixed; z-index: 30; inset: 0; display: flex; align-items: center; justify-content: center; padding: calc(30rpx + env(safe-area-inset-top)) 30rpx calc(30rpx + env(safe-area-inset-bottom)); background: rgba(16,28,21,.58); }.uproot-modal { width: 100%; max-width: 680rpx; max-height: 86vh; overflow-y: auto; padding: 34rpx 30rpx; }.uproot-title, .uproot-warning, .modal-label { display: block; }.uproot-title { font-size: 32rpx; font-weight: 800; }.uproot-warning { margin: 14rpx 0 26rpx; padding: 18rpx; border-left: 6rpx solid #a43e37; background: #fff2f0; color: #7d3732; font-size: 23rpx; line-height: 1.55; }.modal-label { margin: 20rpx 0 10rpx; color: #425148; font-size: 24rpx; font-weight: 700; }.modal-input, .modal-textarea { width: 100%; box-sizing: border-box; padding: 0 20rpx; border: 1rpx solid #c9d2cb; border-radius: 6rpx; background: #f9faf9; font-size: 26rpx; }.modal-input { height: 78rpx; }.modal-textarea { height: 130rpx; padding-top: 16rpx; }.modal-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 16rpx; margin-top: 30rpx; }.modal-actions button { height: 76rpx; margin: 0; border-radius: 6rpx; font-size: 25rpx; line-height: 76rpx; }.cancel-button { background: #eef1ef; color: #526158; }.danger-button { background: #a43e37; color: #fff; }
 
 .field-head {
   display: flex;

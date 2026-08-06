@@ -14,6 +14,7 @@ const router = createRouter({
         { path: '', redirect: '/dashboard' },
         { path: 'dashboard', name: 'dashboard', component: () => import('@/views/DashboardView.vue'), meta: { title: '农业驾驶舱' } },
         { path: 'operations', name: 'operations', component: () => import('@/views/OperationsCenterView.vue'), meta: { title: '运营风险中心', adminOnly: true } },
+        { path: 'data-security', name: 'data-security', component: () => import('@/views/OperationsCenterView.vue'), meta: { title: '本地备份与同步', adminOnly: true } },
         { path: 'communication', name: 'communication', component: () => import('@/views/CommunicationView.vue'), meta: { title: '工作沟通' } },
         { path: 'organizations', name: 'organizations', component: () => import('@/views/OrganizationsView.vue'), meta: { title: '经营主体与农场' } },
         { path: 'tasks', name: 'tasks', component: () => import('@/views/TasksView.vue'), meta: { title: '生产任务' } },
@@ -35,8 +36,9 @@ const router = createRouter({
   ],
 })
 
-router.beforeEach((to) => {
+router.beforeEach(async (to) => {
   const auth = useAuthStore()
+  if (auth.token && !auth.sessionVerified) await auth.refreshSession()
   if (to.meta.requiresAuth && !auth.isAuthenticated) return { name: 'login', query: { redirect: to.fullPath } }
   if (to.meta.adminOnly && auth.user?.role !== 'admin') return { name: 'dashboard' }
   if (to.meta.guest && auth.isAuthenticated) return { name: 'dashboard' }
