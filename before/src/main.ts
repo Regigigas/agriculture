@@ -4,6 +4,7 @@ import {
   create,
   NAlert,
   NAvatar,
+  NBadge,
   NButton,
   NCard,
   NConfigProvider,
@@ -12,6 +13,7 @@ import {
   NDrawer,
   NDrawerContent,
   NDropdown,
+  NEmpty,
   NForm,
   NFormItem,
   NInput,
@@ -19,11 +21,14 @@ import {
   NMenu,
   NMessageProvider,
   NModal,
+  NPopover,
   NProgress,
   NSelect,
   NSpin,
   NTable,
+  NTabPane,
   NTag,
+  NTabs,
 } from 'naive-ui'
 import App from './App.vue'
 import router from './router'
@@ -33,6 +38,7 @@ const naive = create({
   components: [
     NAlert,
     NAvatar,
+    NBadge,
     NButton,
     NCard,
     NConfigProvider,
@@ -41,6 +47,7 @@ const naive = create({
     NDrawer,
     NDrawerContent,
     NDropdown,
+    NEmpty,
     NForm,
     NFormItem,
     NInput,
@@ -48,11 +55,14 @@ const naive = create({
     NMenu,
     NMessageProvider,
     NModal,
+    NPopover,
     NProgress,
     NSelect,
     NSpin,
     NTable,
+    NTabPane,
     NTag,
+    NTabs,
   ],
 })
 

@@ -1,26 +1,88 @@
 {
-  "name": "agriculture-admin",
+  "name": "fengyu-agriculture-desktop",
+  "version": "1.0.0-beta.3",
+  "description": "支持离线、局域网与蓝牙接入的农业生产桌面系统",
+  "author": "Fengyu Agriculture",
   "private": true,
-  "version": "1.0.0",
   "type": "module",
+  "main": "main.cjs",
   "scripts": {
-    "dev": "vite",
-    "build": "vue-tsc -b && vite build",
+    "dev:server": "npm --prefix server run start:dev",
+    "dev:web": "vite",
+    "build:server": "npm --prefix server run build",
+    "build:web": "vue-tsc -b && vite build",
+    "ensure:electron": "electron --version",
+    "dev": "npm run ensure:electron && npm run build:server && concurrently -k \"npm run dev:web\" \"wait-on http://127.0.0.1:5173 && electron . --dev\"",
+    "build": "npm run ensure:electron && npm run build:server && npm run build:web && electron-builder --win nsis --publish never",
+    "pack": "npm run ensure:electron && npm run build:server && npm run build:web && electron-builder --dir --publish never",
+    "test:visual": "playwright test tests/field-3d.visual.spec.ts",
+    "test:visual:app": "playwright test tests/app-field-3d.visual.spec.ts",
+    "test:visual:all": "playwright test tests/field-3d.visual.spec.ts tests/app-field-3d.visual.spec.ts tests/data-and-chat.visual.spec.ts",
+    "verify:sync": "npm --prefix ../after run build && npm --prefix server run build && node scripts/verify-sync.cjs",
+    "verify:local-sync": "npm --prefix server run build && node scripts/verify-local-sync.cjs",
     "preview": "vite preview"
   },
   "dependencies": {
-    "echarts": "^6.1.0",
     "@lucide/vue": "^1.28.0",
+    "@nestjs/common": "^11.1.28",
+    "@nestjs/core": "^11.1.28",
+    "@nestjs/platform-express": "^11.1.28",
+    "echarts": "^6.1.0",
+    "electron-updater": "^6.6.2",
     "naive-ui": "^2.40.1",
     "pinia": "^2.2.6",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1",
+    "three": "^0.179.1",
     "vue": "^3.5.13",
     "vue-router": "^4.5.0"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
+    "@types/three": "^0.179.0",
+    "@playwright/test": "^1.54.2",
     "@vitejs/plugin-vue": "^5.2.1",
+    "concurrently": "^9.2.1",
+    "electron": "^43.2.0",
+    "electron-builder": "^26.15.3",
     "typescript": "~5.7.2",
     "vite": "^6.0.5",
-    "vue-tsc": "^2.2.0"
+    "vue-tsc": "^2.2.0",
+    "wait-on": "^9.0.1"
+  },
+  "build": {
+    "appId": "com.fengyu.agriculture",
+    "productName": "丰域农业",
+    "asar": true,
+    "npmRebuild": false,
+    "electronDist": "node_modules/electron/dist",
+    "directories": {
+      "app": ".",
+      "output": "release"
+    },
+    "files": [
+      "main.cjs",
+      "preload.cjs",
+      "server/dist/**/*",
+      "dist/**/*",
+      "build/icon.ico",
+      "package.json"
+    ],
+    "win": {
+      "icon": "build/icon.ico",
+      "artifactName": "Fengyu-Agriculture-Desktop-${version}-${arch}.${ext}",
+      "target": ["nsis"]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "Regigigas",
+      "repo": "agriculture"
+    }
   }
 }

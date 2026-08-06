@@ -6,6 +6,8 @@ import { useFarmStore } from '@/stores/farm'
 import type { CreateTaskInput, FarmTask, TaskPriority, TaskStatus } from '@/types'
 import PageHeader from '@/components/PageHeader.vue'
 import StatePanel from '@/components/StatePanel.vue'
+import TableActions from '@/components/TableActions.vue'
+import type { TableAction } from '@/components/table-actions'
 
 const farm = useFarmStore()
 const message = useMessage()
@@ -39,6 +41,10 @@ function advance(task: FarmTask) {
     try { await farm.updateTaskStatus(task.id, nextStatus); message.success(completing ? '任务已完成' : '任务已开始') } catch { message.error(farm.errors.taskMutation) }
   } })
 }
+function taskActions(task: FarmTask): TableAction[] {
+  if (task.status === 'completed') return []
+  return [{ key: 'advance', label: task.status === 'pending' ? '开始' : '完工', icon: task.status === 'pending' ? Play : Check, type: 'primary', secondary: true, loading: farm.loading.taskMutation, onClick: () => advance(task) }]
+}
 onMounted(() => Promise.all([farm.loadTasks(), farm.loadFields()]).catch(() => undefined))
 </script>
 
@@ -46,7 +52,7 @@ onMounted(() => Promise.all([farm.loadTasks(), farm.loadFields()]).catch(() => u
   <page-header title="生产任务" description="安排农事活动，跟踪执行进度与责任人员"><n-button type="primary" @click="showModal = true"><template #icon><Plus /></template>新建任务</n-button></page-header>
   <div class="filter-bar"><n-input v-model:value="keyword" clearable placeholder="搜索任务、地块或负责人"><template #prefix><Search :size="17" /></template></n-input><n-select v-model:value="status" clearable placeholder="全部状态" :options="[{label:'待处理',value:'pending'},{label:'进行中',value:'in_progress'},{label:'已完成',value:'completed'}]" /></div>
   <state-panel :loading="farm.loading.tasks" :error="farm.errors.tasks" :empty="!filtered.length" empty-text="没有符合条件的任务" @retry="farm.loadTasks">
-    <div class="table-wrap"><n-table :single-line="false"><thead><tr><th>任务</th><th>关联地块</th><th>负责人</th><th>截止日期</th><th>优先级</th><th>状态</th><th>操作</th></tr></thead><tbody><tr v-for="task in filtered" :key="task.id"><td><strong>{{ task.title }}</strong><small class="cell-detail">{{ task.description || '无补充说明' }}</small></td><td>{{ fieldName(task.fieldId) }}</td><td>{{ task.assignee }}</td><td>{{ task.dueDate }}</td><td><span :class="['priority', task.priority]">{{ priorityMap[task.priority] }}</span></td><td><n-tag size="small" :type="statusMap[task.status]?.type || 'default'">{{ statusMap[task.status]?.label || task.status }}</n-tag></td><td><n-button v-if="task.status !== 'completed'" size="small" secondary type="primary" :loading="farm.loading.taskMutation" @click="advance(task)"><template #icon><Play v-if="task.status === 'pending'" /><Check v-else /></template>{{ task.status === 'pending' ? '开始' : '完工' }}</n-button><span v-else class="muted">已归档</span></td></tr></tbody></n-table></div>
+    <div class="table-wrap action-table"><n-table :single-line="false"><thead><tr><th>任务</th><th>关联地块</th><th>负责人</th><th>截止日期</th><th>优先级</th><th>状态</th><th>操作</th></tr></thead><tbody><tr v-for="task in filtered" :key="task.id"><td><strong>{{ task.title }}</strong><small class="cell-detail">{{ task.description || '无补充说明' }}</small></td><td>{{ fieldName(task.fieldId) }}</td><td>{{ task.assignee }}</td><td>{{ task.dueDate }}</td><td><span :class="['priority', task.priority]">{{ priorityMap[task.priority] }}</span></td><td><n-tag size="small" :type="statusMap[task.status]?.type || 'default'">{{ statusMap[task.status]?.label || task.status }}</n-tag></td><td><table-actions :actions="taskActions(task)" empty-text="已归档" /></td></tr></tbody></n-table></div>
   </state-panel>
   <n-modal v-model:show="showModal" preset="card" title="新建生产任务" class="form-modal" :bordered="false"><n-form ref="formRef" :model="form" :rules="rules" label-placement="top"><n-form-item label="任务名称" path="title"><n-input v-model:value="form.title" placeholder="例如：一号田块滴灌" /></n-form-item><div class="form-grid"><n-form-item label="关联地块" path="fieldId"><n-select v-model:value="form.fieldId" :options="fieldOptions" placeholder="选择地块" /></n-form-item><n-form-item label="负责人" path="assignee"><n-input v-model:value="form.assignee" placeholder="输入负责人" /></n-form-item><n-form-item label="截止日期" path="dueDate"><n-date-picker v-model:formatted-value="form.dueDate" value-format="yyyy-MM-dd" type="date" clearable /></n-form-item><n-form-item label="优先级"><n-select v-model:value="form.priority" :options="[{label:'普通',value:'low'},{label:'重要',value:'medium'},{label:'紧急',value:'high'}]" /></n-form-item></div><n-form-item label="任务说明"><n-input v-model:value="form.description" type="textarea" :rows="3" /></n-form-item><div class="modal-actions"><n-button @click="showModal = false">取消</n-button><n-button type="primary" :loading="farm.loading.taskMutation" @click="create">创建任务</n-button></div></n-form></n-modal>
 </template>

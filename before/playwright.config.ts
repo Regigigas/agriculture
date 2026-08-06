@@ -14,7 +14,7 @@ const appUrl = `http://127.0.0.1:${appPort}`;
 export default defineConfig({
   webServer: [
     {
-      command: `${npm} --prefix ../server run start`,
+      command: `${npm} --prefix server run start`,
       url: `${apiBaseUrl}/health`,
       reuseExistingServer,
       timeout: 120_000,
@@ -26,14 +26,14 @@ export default defineConfig({
       },
     },
     {
-      command: `${npm} run dev -- --host 127.0.0.1 --port ${desktopPort}`,
+      command: `${npm} run dev:web -- --host 127.0.0.1 --port ${desktopPort}`,
       url: desktopUrl,
       reuseExistingServer,
       timeout: 120_000,
       env: { VITE_API_BASE_URL: apiBaseUrl },
     },
     {
-      command: `${npm} --prefix ../../APP run dev:h5 -- --host 127.0.0.1 --port ${appPort}`,
+      command: `${npm} --prefix ../APP run dev:h5 -- --host 127.0.0.1 --port ${appPort}`,
       url: appUrl,
       reuseExistingServer,
       timeout: 120_000,

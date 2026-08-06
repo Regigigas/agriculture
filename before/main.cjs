@@ -169,7 +169,7 @@ async function waitForBackend(timeoutMs = 15000) {
 }
 
 function frontendEntry() {
-  return path.join(app.getAppPath(), 'renderer', 'dist', 'index.html')
+  return path.join(app.getAppPath(), 'dist', 'index.html')
 }
 
 function managedDocumentDirectory() {

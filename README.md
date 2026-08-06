@@ -7,8 +7,7 @@
 ```text
 agriculture/
 ├─ after/     NestJS 线上增量同步与 REST API
-├─ before/    Vue 3 管理端源码（浏览器构建，不再作为桌面发行入口）
-├─ desktop/   前端 Electron 发行工程 + NestJS + SQLite 离线服务
+├─ before/    Electron + Vue 3 桌面管理端与 NestJS + SQLite 本地服务
 ├─ terminal/  C++17 物联网数据采集终端
 └─ APP/       uni-app + Pinia 巡田移动端
 ```
@@ -37,20 +36,20 @@ agriculture/
 环境要求：Node.js 22+、npm 10+。C++ 终端需要 CMake 3.16+ 和支持 C++17 的编译器。
 
 ```bash
-cd after
-npm install
-npm run start:dev
-```
-
-另开终端启动管理端：
-
-```bash
 cd before
 npm install
+npm --prefix server install
 npm run dev
 ```
 
-默认地址：
+Electron 会自动启动本地 API 和管理界面。仅在浏览器中联调时，分别运行：
+
+```bash
+npm --prefix before run dev:server
+npm run dev:web
+```
+
+浏览器联调默认地址：
 
 - 后端 API：`http://localhost:3100/api`
 - 管理端：`http://localhost:5173`
@@ -60,12 +59,11 @@ npm run dev
 
 ## 离线桌面端
 
-桌面端是 `before` 前端的正式交付形态，也是当前功能最完整的本地入口。它会自动启动 NestJS 本地 API，使用 SQLite/WAL 持久化业务、账号和聊天数据，并提供数据文件、局域网、BLE 和云端增量同步入口。断网时写入进入本地 outbox，联网后按云端游标同步；并发版本冲突在“连接中心”选择保留本机或采用云端。纠错中心不会在登录后自动弹出，需要时可通过顶部纠错图标或页面错误入口打开。
+桌面端位于 `before/`，是当前功能最完整的本地入口。它会自动启动 NestJS 本地 API，使用 SQLite/WAL 持久化业务、账号和聊天数据，并提供数据文件、局域网、BLE 和云端增量同步入口。断网时写入进入本地 outbox，联网后按云端游标同步；并发版本冲突在“连接中心”选择保留本机或采用云端。纠错中心不会在登录后自动弹出，需要时可通过顶部纠错图标或页面错误入口打开。
 
 ```bash
-npm --prefix desktop install
-npm --prefix desktop/server install
-npm --prefix desktop/renderer install
+npm --prefix before install
+npm --prefix before/server install
 npm run dev:desktop
 ```
 
@@ -75,7 +73,7 @@ npm run dev:desktop
 npm run build:desktop
 ```
 
-详细说明和市场对标见 `desktop/README.md` 与 `desktop/docs/market-gap-and-offline-architecture.md`。
+详细说明和市场对标见 `before/README.md` 与 `before/docs/market-gap-and-offline-architecture.md`。
 
 ## 巡田 APP
 
@@ -101,13 +99,14 @@ Windows 多配置生成器的可执行文件通常位于 `terminal/build/Release
 
 ## 同步与数据说明
 
-`after/` 使用 SQLite/WAL 持久化云端同步实体、变更游标和幂等回执；原有 REST 演示业务数据仍用于 Web 与 APP 联调。`desktop/server/` 持久化经营主体、农场、地块、种植季、计划实绩、采收销售、合同文书、任务问题、库存、纠错和遥测数据，并提供审计、完整性检查、手动备份、SQLite 数据文件合并和云端增量同步。合同与文书只同步结构化元数据，本机附件路径不会上传或被外部数据文件覆盖。
+`after/` 使用 SQLite/WAL 持久化云端同步实体、变更游标和幂等回执；原有 REST 演示业务数据仍用于 Web 与 APP 联调。`before/server/` 持久化经营主体、农场、地块、种植季、计划实绩、采收销售、合同文书、任务问题、库存、纠错和遥测数据，并提供审计、完整性检查、手动备份、SQLite 数据文件合并和云端增量同步。合同与文书只同步结构化元数据，本机附件路径不会上传或被外部数据文件覆盖。
 
 当前 beta 面向单实例云服务。正式多用户部署仍需将云端同步库迁移至 PostgreSQL，并补齐租户隔离、用户角色、令牌轮换、对象存储、自动备份与恢复演练和公网 TLS。
 
 同步验收：
 
 ```bash
+cd before
 npm run verify:sync
 npm run verify:local-sync
 ```

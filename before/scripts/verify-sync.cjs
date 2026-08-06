@@ -5,7 +5,7 @@ const { join, resolve } = require('node:path')
 const { spawn } = require('node:child_process')
 const { createServer } = require('node:net')
 
-const root = resolve(__dirname, '..')
+const root = resolve(__dirname, '../..')
 const temporaryRoot = mkdtempSync(join(tmpdir(), 'fengyu-sync-test-'))
 const children = []
 
@@ -64,7 +64,7 @@ function expect(value, message) {
 function verifyLocalOutbox() {
   const previousDataDirectory = process.env.AGRI_DATA_DIR
   process.env.AGRI_DATA_DIR = join(temporaryRoot, 'database-unit')
-  const { LocalDatabase } = require(resolve(root, 'desktop/server/dist/local-database.js'))
+  const { LocalDatabase } = require(resolve(root, 'before/server/dist/local-database.js'))
   const database = new LocalDatabase()
   try {
     database.put('tasks', { id: 'race-task', value: 'first' })
@@ -152,7 +152,7 @@ async function main() {
     DEMO_TOKEN: cloudToken,
     AGRI_CLOUD_DATA_DIR: join(temporaryRoot, 'cloud'),
   })
-  const local = start(resolve(root, 'desktop/server/dist/main.js'), resolve(root, 'desktop/server'), {
+  const local = start(resolve(root, 'before/server/dist/main.js'), resolve(root, 'before/server'), {
     HOST: '127.0.0.1',
     PORT: String(localPort),
     DEMO_TOKEN: localToken,

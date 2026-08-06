@@ -20,24 +20,22 @@ jobs:
           cache-dependency-path: |
             after/package-lock.json
             APP/package-lock.json
-            desktop/package-lock.json
-            desktop/server/package-lock.json
-            desktop/renderer/package-lock.json
+            before/package-lock.json
+            before/server/package-lock.json
       - name: Install dependencies
         shell: pwsh
         run: |
           npm ci --prefix after
           npm ci --prefix APP
-          npm ci --prefix desktop
-          npm ci --prefix desktop/server
-          npm ci --prefix desktop/renderer
+          npm ci --prefix before
+          npm ci --prefix before/server
       - name: Run Vitest
         run: npm test
       - name: Run Three.js visual tests
         shell: pwsh
         run: |
-          npm exec --prefix desktop/renderer -- playwright install chromium
-          npm --prefix desktop/renderer run test:visual:all
+          npm exec --prefix before -- playwright install chromium
+          npm --prefix before run test:visual:all
       - name: Verify synchronization
         shell: pwsh
         run: |
@@ -47,7 +45,7 @@ jobs:
         shell: pwsh
         run: |
           npm run build:api
-          npm --prefix desktop/server run build
-          npm --prefix desktop/renderer run build
+          npm --prefix before/server run build
+          npm --prefix before run build:web
           npm run build:app
           npm run build:app-resource

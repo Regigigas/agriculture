@@ -1,16 +1,21 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
-import { AlertTriangle, CheckCircle2, CloudSun, Droplets, RadioTower, Sprout, ThermometerSun } from '@lucide/vue'
+import { useRouter } from 'vue-router'
+import { AlertTriangle, CheckCircle2, CloudSun, Coins, Droplets, Layers3, RadioTower, ShieldAlert, Sprout, ThermometerSun } from '@lucide/vue'
 import type { EChartsOption } from 'echarts'
 import { useFarmStore } from '@/stores/farm'
+import { useOperationsStore } from '@/stores/operations'
 import EChart from '@/components/EChart.vue'
 import StatePanel from '@/components/StatePanel.vue'
 
 const farm = useFarmStore()
+const operations = useOperationsStore()
+const router = useRouter()
 const d = computed(() => farm.dashboard)
 const metrics = computed(() => d.value.metrics)
 const environment = computed(() => d.value.environment)
 const formatTime = (value: string) => new Date(value).toLocaleString('zh-CN', { hour12: false })
+const money = (value: number) => new Intl.NumberFormat('zh-CN', { style: 'currency', currency: 'CNY', maximumFractionDigits: 0 }).format(value)
 const cropOption = computed<EChartsOption>(() => ({
   tooltip: { trigger: 'item' },
   legend: { bottom: 0, icon: 'circle', itemWidth: 9, textStyle: { color: '#61706a' } },
@@ -27,7 +32,7 @@ const trendOption = computed<EChartsOption>(() => ({
     { name: '新增', type: 'bar', barMaxWidth: 18, data: (d.value.taskTrend || []).map((x) => x.created || 0) },
   ],
 }))
-onMounted(() => farm.loadDashboard().catch(() => undefined))
+onMounted(() => Promise.all([farm.loadDashboard(), operations.loadSummary()]).catch(() => undefined))
 </script>
 
 <template>
@@ -37,6 +42,12 @@ onMounted(() => farm.loadDashboard().catch(() => undefined))
       <n-card><div class="kpi"><span class="kpi-icon amber"><CheckCircle2 /></span><div><small>待办任务</small><strong>{{ metrics?.pendingTasks ?? 0 }}</strong><span>需按计划推进</span></div></div></n-card>
       <n-card><div class="kpi"><span class="kpi-icon blue"><RadioTower /></span><div><small>在线设备</small><strong>{{ metrics?.onlineDevices ?? 0 }}</strong><span>设备稳定运行</span></div></div></n-card>
       <n-card><div class="kpi"><span class="kpi-icon red"><AlertTriangle /></span><div><small>未处理告警</small><strong>{{ metrics?.activeAlerts ?? 0 }}</strong><span>请及时核查</span></div></div></n-card>
+    </div>
+
+    <div class="business-strip">
+      <button @click="router.push('/production')"><span><Layers3 /></span><div><small>活跃种植季</small><strong>{{ operations.summary.activeCycles }}</strong><em>{{ operations.summary.pendingPlans }} 项计划待执行</em></div></button>
+      <button @click="router.push('/traceability')"><span><Coins /></span><div><small>销售收入</small><strong>{{ money(operations.summary.salesRevenue) }}</strong><em>待收 {{ money(operations.summary.receivables) }}</em></div></button>
+      <button @click="router.push('/operations')"><span><ShieldAlert /></span><div><small>开放经营风险</small><strong>{{ operations.summary.openRisks }}</strong><em>{{ operations.summary.criticalRisks }} 项严重风险</em></div></button>
     </div>
 
     <section class="section-block"><div class="section-heading"><div><h2>田间环境</h2><p>最近一次传感器采集数据</p></div><span class="live-badge"><i />实时监测</span></div>

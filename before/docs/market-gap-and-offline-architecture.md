@@ -102,7 +102,7 @@ Electron 农场桌面端
              └─ 局域网 APP/采集终端
 ```
 
-Electron 所在电脑是农场局域网的权威节点。互联网断开不影响桌面端和本地 API；同一 Wi-Fi 下的客户端可通过“连接中心”显示的地址对接。SQLite 数据文件位于 Electron 的 `userData/data/agriculture.db`，独立开发服务器默认使用 `desktop/server/data/agriculture.db`。
+Electron 所在电脑是农场局域网的权威节点。互联网断开不影响桌面端和本地 API；同一 Wi-Fi 下的客户端可通过“连接中心”显示的地址对接。SQLite 数据文件位于 Electron 的 `userData/data/agriculture.db`，独立开发服务器默认使用 `before/server/data/agriculture.db`。
 
 ## 6. 同步与数据规则
 

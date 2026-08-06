@@ -4,9 +4,9 @@ const { tmpdir } = require('node:os')
 const path = require('node:path')
 const { backup, DatabaseSync } = require('node:sqlite')
 const { randomUUID } = require('node:crypto')
-const { AgricultureService } = require('../desktop/server/dist/agriculture.service.js')
-const { LocalDatabase } = require('../desktop/server/dist/local-database.js')
-const { ProductionService } = require('../desktop/server/dist/production.service.js')
+const { AgricultureService } = require('../server/dist/agriculture.service.js')
+const { LocalDatabase } = require('../server/dist/local-database.js')
+const { ProductionService } = require('../server/dist/production.service.js')
 
 async function verify() {
   const root = mkdtempSync(path.join(tmpdir(), 'fengyu-local-sync-'))

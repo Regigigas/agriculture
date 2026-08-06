@@ -1,5 +1,32 @@
 <script setup lang="ts">
+import { onBeforeUnmount, onMounted } from 'vue'
 import { NConfigProvider, NDialogProvider, NMessageProvider, zhCN, dateZhCN, type GlobalThemeOverrides } from 'naive-ui'
+import { useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
+import { resetDomainStores } from '@/stores/reset'
+
+const auth = useAuthStore()
+const router = useRouter()
+
+function handleExpiredSession() {
+  auth.clearSession()
+  if (router.currentRoute.value.name !== 'login') {
+    void router.replace({ name: 'login', query: { redirect: router.currentRoute.value.fullPath } })
+  }
+}
+
+function handleClearedSession() {
+  resetDomainStores()
+}
+
+onMounted(() => {
+  window.addEventListener('agriculture-auth-expired', handleExpiredSession)
+  window.addEventListener('agriculture-session-cleared', handleClearedSession)
+})
+onBeforeUnmount(() => {
+  window.removeEventListener('agriculture-auth-expired', handleExpiredSession)
+  window.removeEventListener('agriculture-session-cleared', handleClearedSession)
+})
 
 const themeOverrides: GlobalThemeOverrides = {
   common: {

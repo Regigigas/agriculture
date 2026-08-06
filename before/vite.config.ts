@@ -7,6 +7,7 @@ function vendorChunk(id: string): string | undefined {
   if (!path.includes('/node_modules/')) return undefined
 
   if (path.includes('/echarts/')) return 'vendor-charts'
+  if (path.includes('/three/')) return 'vendor-three'
   if (path.includes('/zrender/')) return 'vendor-renderer'
   if (path.includes('/date-fns/') || path.includes('/date-fns-tz/')) return 'vendor-dates'
   if (path.includes('/lodash/') || path.includes('/lodash-es/')) return 'vendor-lodash'
@@ -36,6 +37,7 @@ function vendorChunk(id: string): string | undefined {
 }
 
 export default defineConfig({
+  base: './',
   plugins: [vue()],
   resolve: {
     alias: {

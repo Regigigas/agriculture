@@ -19,18 +19,16 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: |
-            desktop/package-lock.json
-            desktop/server/package-lock.json
-            desktop/renderer/package-lock.json
+            before/package-lock.json
+            before/server/package-lock.json
             after/package-lock.json
             APP/package-lock.json
 
       - name: Install dependencies
         shell: pwsh
         run: |
-          npm ci --prefix desktop
-          npm ci --prefix desktop/server
-          npm ci --prefix desktop/renderer
+          npm ci --prefix before
+          npm ci --prefix before/server
           npm ci --prefix after
           npm ci --prefix APP
 
@@ -41,9 +39,8 @@ jobs:
             './package.json',
             './after/package.json',
             './APP/package.json',
-            './desktop/package.json',
-            './desktop/server/package.json',
-            './desktop/renderer/package.json'
+            './before/package.json',
+            './before/server/package.json'
           )
           $versions = $packageFiles | ForEach-Object { node -p "require('$($_)').version" }
           $version = $versions[0]
@@ -66,8 +63,8 @@ jobs:
           npm run verify:local-sync
           npm run build:app
           npm run build:app-resource
-          npm exec --prefix desktop/renderer -- playwright install chromium
-          npm --prefix desktop/renderer run test:visual:all
+          npm exec --prefix before -- playwright install chromium
+          npm --prefix before run test:visual:all
 
       - name: Build Windows installer
         run: npm run build:desktop
@@ -75,9 +72,9 @@ jobs:
       - name: Write checksum
         shell: pwsh
         run: |
-          $installer = Get-ChildItem desktop/release/*.exe | Select-Object -First 1
+          $installer = Get-ChildItem before/release/*.exe | Select-Object -First 1
           $hash = (Get-FileHash $installer.FullName -Algorithm SHA256).Hash.ToLower()
-          "$hash  $($installer.Name)" | Set-Content desktop/release/SHA256SUMS.txt -Encoding ascii
+          "$hash  $($installer.Name)" | Set-Content before/release/SHA256SUMS.txt -Encoding ascii
 
       - name: Create GitHub prerelease
         uses: softprops/action-gh-release@v2
@@ -85,7 +82,7 @@ jobs:
           prerelease: ${{ contains(github.ref_name, '-') }}
           generate_release_notes: true
           files: |
-            desktop/release/*.exe
-            desktop/release/*.blockmap
-            desktop/release/latest.yml
-            desktop/release/SHA256SUMS.txt
+            before/release/*.exe
+            before/release/*.blockmap
+            before/release/latest.yml
+            before/release/SHA256SUMS.txt

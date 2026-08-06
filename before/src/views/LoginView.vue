@@ -10,7 +10,8 @@ const router = useRouter()
 const route = useRoute()
 const message = useMessage()
 const formRef = ref<FormInst | null>(null)
-const form = reactive({ username: 'admin', password: 'admin123' })
+const isDesktop = Boolean(window.agricultureDesktop?.isDesktop)
+const form = reactive({ username: 'admin', password: isDesktop ? '' : 'admin123' })
 const rules: FormRules = {
   username: { required: true, message: '请输入账号', trigger: 'blur' },
   password: { required: true, message: '请输入密码', trigger: 'blur' },
@@ -43,7 +44,7 @@ async function submit() {
           <n-form-item label="密码" path="password"><n-input v-model:value="form.password" type="password" show-password-on="click" placeholder="请输入密码" @keyup.enter="submit"><template #prefix><LockKeyhole :size="17" /></template></n-input></n-form-item>
           <n-button type="primary" block attr-type="submit" :loading="auth.loading">进入管理平台</n-button>
         </n-form>
-        <p class="demo-account">演示账号 admin / admin123</p>
+        <p class="demo-account">{{ isDesktop ? '本机离线账号：admin' : '演示账号 admin / admin123' }}</p>
       </div>
     </main>
   </div>
