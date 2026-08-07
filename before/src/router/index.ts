@@ -13,6 +13,7 @@ const router = createRouter({
       children: [
         { path: '', redirect: '/dashboard' },
         { path: 'dashboard', name: 'dashboard', component: () => import('@/views/DashboardView.vue'), meta: { title: '农业驾驶舱' } },
+        { path: 'agronomy-decision', name: 'agronomy-decision', component: () => import('@/views/AgronomyDecisionView.vue'), meta: { title: '农情决策中心' } },
         { path: 'operations', name: 'operations', component: () => import('@/views/OperationsCenterView.vue'), meta: { title: '运营风险中心', adminOnly: true } },
         { path: 'data-security', name: 'data-security', component: () => import('@/views/OperationsCenterView.vue'), meta: { title: '本地备份与同步', adminOnly: true } },
         { path: 'communication', name: 'communication', component: () => import('@/views/CommunicationView.vue'), meta: { title: '工作沟通' } },

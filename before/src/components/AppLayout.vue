@@ -3,7 +3,7 @@ import { computed, h, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useMessage } from 'naive-ui'
 import { useRoute, useRouter } from 'vue-router'
 import { NAvatar, NButton, NDrawer, NDrawerContent, NDropdown, NIcon, NMenu, type MenuOption } from 'naive-ui'
-import { AlertTriangle, Bell, Bluetooth, Boxes, Bug, Building2, ClipboardList, DatabaseBackup, Download, FileCheck2, Gauge, Layers3, LogOut, Menu, MessageCircle, MessageSquareWarning, PackageSearch, RadioTower, ShieldAlert, ShoppingCart, Sprout, UserRound } from '@lucide/vue'
+import { AlertTriangle, Bell, Bluetooth, Boxes, Bug, Building2, ClipboardList, CloudSun, DatabaseBackup, Download, FileCheck2, Gauge, Layers3, LogOut, Menu, MessageCircle, MessageSquareWarning, PackageSearch, RadioTower, ShieldAlert, ShoppingCart, Sprout, UserRound } from '@lucide/vue'
 import { request } from '@/api/client'
 import { useAuthStore } from '@/stores/auth'
 import { useFarmStore } from '@/stores/farm'
@@ -23,6 +23,7 @@ const icon = (component: typeof Gauge) => () => h(NIcon, null, { default: () => 
 const menuOptions = computed<MenuOption[]>(() => [
   { type: 'group', label: '工作台', key: 'workbench', children: [
     { label: '农业驾驶舱', key: '/dashboard', icon: icon(Gauge) },
+    { label: '农情决策中心', key: '/agronomy-decision', icon: icon(CloudSun) },
     ...(auth.user?.role === 'admin' ? [
       { label: '运营风险中心', key: '/operations', icon: icon(ShieldAlert) },
       { label: '本地备份与同步', key: '/data-security', icon: icon(DatabaseBackup) },
