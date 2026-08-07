@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { AlertTriangle, CheckCircle2, CloudSun, Coins, Droplets, Layers3, RadioTower, ShieldAlert, Sprout, ThermometerSun } from '@lucide/vue'
+import { AlertTriangle, CalendarDays, CheckCircle2, CloudSun, Coins, Droplets, Layers3, RadioTower, ShieldAlert, Sprout, ThermometerSun } from '@lucide/vue'
 import type { EChartsOption } from 'echarts'
 import { useFarmStore } from '@/stores/farm'
 import { useOperationsStore } from '@/stores/operations'
+import { formatSolarTermDate, getSolarTermPlan } from '@/solarTerms'
 import EChart from '@/components/EChart.vue'
 import StatePanel from '@/components/StatePanel.vue'
 
@@ -14,6 +15,7 @@ const router = useRouter()
 const d = computed(() => farm.dashboard)
 const metrics = computed(() => d.value.metrics)
 const environment = computed(() => d.value.environment)
+const solarTermPlan = computed(() => getSolarTermPlan())
 const formatTime = (value: string) => new Date(value).toLocaleString('zh-CN', { hour12: false })
 const money = (value: number) => new Intl.NumberFormat('zh-CN', { style: 'currency', currency: 'CNY', maximumFractionDigits: 0 }).format(value)
 const cropOption = computed<EChartsOption>(() => ({
@@ -43,6 +45,32 @@ onMounted(() => Promise.all([farm.loadDashboard(), operations.loadSummary()]).ca
       <n-card><div class="kpi"><span class="kpi-icon blue"><RadioTower /></span><div><small>在线设备</small><strong>{{ metrics?.onlineDevices ?? 0 }}</strong><span>设备稳定运行</span></div></div></n-card>
       <n-card><div class="kpi"><span class="kpi-icon red"><AlertTriangle /></span><div><small>未处理告警</small><strong>{{ metrics?.activeAlerts ?? 0 }}</strong><span>请及时核查</span></div></div></n-card>
     </div>
+
+    <section class="solar-term-panel">
+      <div class="solar-term-current">
+        <span class="solar-term-icon"><CalendarDays /></span>
+        <div>
+          <small>当前节气</small>
+          <h2>{{ solarTermPlan.current.name }}</h2>
+          <p>{{ formatSolarTermDate(solarTermPlan.current.date) }} · {{ solarTermPlan.current.theme }} · {{ solarTermPlan.current.cropStage }}</p>
+        </div>
+        <strong>距{{ solarTermPlan.next.name }} {{ solarTermPlan.daysToNext }} 天</strong>
+      </div>
+      <div class="solar-term-advice">
+        <div>
+          <span>这段时间建议做</span>
+          <ul><li v-for="item in solarTermPlan.current.workItems" :key="item">{{ item }}</li></ul>
+        </div>
+        <div>
+          <span>需要关注的风险</span>
+          <div class="solar-term-tags"><em v-for="tip in solarTermPlan.current.riskTips" :key="tip">{{ tip }}</em></div>
+        </div>
+        <div>
+          <span>后续节气</span>
+          <div class="solar-term-upcoming"><b v-for="term in solarTermPlan.upcoming" :key="term.name">{{ term.name }}<small>{{ formatSolarTermDate(term.date) }}</small></b></div>
+        </div>
+      </div>
+    </section>
 
     <div class="business-strip">
       <button @click="router.push('/production')"><span><Layers3 /></span><div><small>活跃种植季</small><strong>{{ operations.summary.activeCycles }}</strong><em>{{ operations.summary.pendingPlans }} 项计划待执行</em></div></button>
