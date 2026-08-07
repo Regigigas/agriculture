@@ -19,15 +19,40 @@ const solarTermPlan = computed(() => getSolarTermPlan())
 const formatTime = (value: string) => new Date(value).toLocaleString('zh-CN', { hour12: false })
 const money = (value: number) => new Intl.NumberFormat('zh-CN', { style: 'currency', currency: 'CNY', maximumFractionDigits: 0 }).format(value)
 const cropOption = computed<EChartsOption>(() => ({
-  tooltip: { trigger: 'item' },
-  legend: { bottom: 0, icon: 'circle', itemWidth: 9, textStyle: { color: '#61706a' } },
+  tooltip: { trigger: 'item', confine: true },
+  legend: {
+    bottom: 0,
+    left: 'center',
+    type: 'scroll',
+    icon: 'circle',
+    itemWidth: 9,
+    itemHeight: 9,
+    itemGap: 12,
+    textStyle: { color: '#61706a', overflow: 'truncate', width: 76 },
+  },
   color: ['#3f6b50', '#d39b3b', '#567c91', '#9a6254', '#87906a'],
-  series: [{ type: 'pie', radius: ['48%', '70%'], center: ['50%', '43%'], label: { formatter: '{b}\n{d}%', color: '#37453f' }, data: (d.value.cropDistribution || []).map((item) => ({ name: item.crop, value: item.area })) }],
+  series: [{
+    type: 'pie',
+    radius: ['45%', '66%'],
+    center: ['50%', '42%'],
+    avoidLabelOverlap: true,
+    label: { show: false },
+    labelLine: { show: false },
+    emphasis: { label: { show: true, formatter: '{b}\n{d}%', color: '#37453f', fontSize: 12, lineHeight: 18 } },
+    data: (d.value.cropDistribution || []).map((item) => ({ name: item.crop, value: item.area })),
+  }],
 }))
 const trendOption = computed<EChartsOption>(() => ({
-  tooltip: { trigger: 'axis' }, grid: { left: 34, right: 18, top: 20, bottom: 30 },
-  xAxis: { type: 'category', data: (d.value.taskTrend || []).map((x) => x.date), axisLine: { lineStyle: { color: '#d8dfdc' } } },
-  yAxis: { type: 'value', minInterval: 1, splitLine: { lineStyle: { color: '#edf0ef' } } },
+  tooltip: { trigger: 'axis', confine: true },
+  legend: { top: 0, right: 4, icon: 'roundRect', itemWidth: 12, itemHeight: 7, textStyle: { color: '#61706a' } },
+  grid: { left: 12, right: 14, top: 42, bottom: 10, containLabel: true },
+  xAxis: {
+    type: 'category',
+    data: (d.value.taskTrend || []).map((x) => x.date),
+    axisLabel: { color: '#6f7b75', hideOverlap: true },
+    axisLine: { lineStyle: { color: '#d8dfdc' } },
+  },
+  yAxis: { type: 'value', minInterval: 1, axisLabel: { color: '#6f7b75' }, splitLine: { lineStyle: { color: '#edf0ef' } } },
   color: ['#3f6b50', '#d39b3b'],
   series: [
     { name: '已完成', type: 'line', smooth: true, symbolSize: 7, data: (d.value.taskTrend || []).map((x) => x.completed), areaStyle: { color: 'rgba(63,107,80,.1)' } },

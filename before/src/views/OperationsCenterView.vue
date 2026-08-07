@@ -18,6 +18,12 @@ const isDesktop = Boolean(window.agricultureDesktop?.isDesktop)
 const customBackup = reactive({ directory: '', available: false, loading: false, error: '', lastFilePath: '' })
 const activeTab = ref(route.name === 'data-security' ? 'data' : 'risks')
 const directDataEntry = computed(() => route.name === 'data-security')
+const panelLoading = computed(() => activeTab.value === 'data'
+  ? operations.loading.backups
+  : operations.loading.summary || operations.loading.risks)
+const panelError = computed(() => activeTab.value === 'data'
+  ? operations.errors.backups
+  : operations.errors.summary || operations.errors.risks)
 const verification = reactive({
   show: false,
   busy: false,
@@ -34,7 +40,12 @@ const domainLabels: Record<string, string> = { subject: '经营主体', farm: '�
 const actionLabel = (action: string) => action.startsWith('status:') ? `状态变更为 ${action.slice(7)}` : action.startsWith('transaction:') ? `库存${action.slice(12)}` : action.startsWith('quality:') ? `质检${action.slice(8)}` : ({ create: '新建', archive: '归档', acknowledge: '确认', backup: '创建备份', uproot: '挖除作物', update_status: '更新状态' }[action] || action)
 function money(value: number) { return new Intl.NumberFormat('zh-CN', { style: 'currency', currency: 'CNY', maximumFractionDigits: 0 }).format(value) }
 function bytes(value: number) { return value < 1024 * 1024 ? `${(value / 1024).toFixed(1)} KB` : `${(value / 1024 / 1024).toFixed(2)} MB` }
-async function refresh() { await Promise.all([operations.loadOperations(), operations.loadBackups()]).catch(() => undefined) }
+async function refresh() {
+  const loaders = activeTab.value === 'data'
+    ? [operations.loadBackups()]
+    : [operations.loadOperations(), operations.loadBackups()]
+  await Promise.all(loaders).catch(() => undefined)
+}
 async function createBackup() { try { const result = await operations.createBackup(); message.success(`本机数据库备份已创建：${result.path}`); await operations.loadAudits() } catch { message.error(operations.errors.backupMutation) } }
 async function exportBackup(name: string) { try { const result = await window.agricultureDesktop?.exportBackup(auth.token, name); if (result && !result.canceled) message.success(`备份已导出：${result.filePath}`) } catch (cause) { message.error(cause instanceof Error ? cause.message : '导出备份失败') } }
 function restoreBackup(name: string) {
@@ -121,6 +132,9 @@ async function backupToCustomDirectory() {
 async function openCustomBackupDirectory() { try { await window.agricultureDesktop?.openCustomBackupDirectory(auth.token) } catch (cause) { message.error(cause instanceof Error ? cause.message : '无法打开外部镜像目录') } }
 async function checkIntegrity() { try { const result = await operations.checkIntegrity(); result.ok ? message.success('SQLite 完整性检查通过') : message.error(result.messages.join('；')) } catch { message.error(operations.errors.integrity) } }
 watch(() => route.name, (name) => { activeTab.value = name === 'data-security' ? 'data' : 'risks' })
+watch(activeTab, (tab) => {
+  if (tab === 'data' && !operations.backups.length && !operations.loading.backups) void operations.loadBackups().catch(() => undefined)
+})
 onMounted(() => { void Promise.all([refresh(), loadCustomBackupConfig()]) })
 </script>
 
@@ -133,7 +147,7 @@ onMounted(() => { void Promise.all([refresh(), loadCustomBackupConfig()]) })
     <div><small>销售收入</small><strong>{{ money(s.salesRevenue) }}</strong><em>待收 {{ money(s.receivables) }}</em></div>
   </div>
 
-  <state-panel :loading="operations.loading.summary || operations.loading.risks" :error="operations.errors.summary || operations.errors.risks" @retry="refresh">
+  <state-panel :loading="panelLoading" :error="panelError" @retry="refresh">
     <n-tabs v-model:value="activeTab" type="line" animated>
       <n-tab-pane name="risks" tab="风险汇总">
         <div v-if="operations.risks.length" class="risk-list"><article v-for="item in operations.risks" :key="item.id" :class="['risk-row', item.severity]"><span class="risk-symbol"><AlertTriangle /></span><div><div class="risk-title"><strong>{{ item.title }}</strong><n-tag size="tiny" :type="item.severity === 'critical' ? 'error' : 'warning'">{{ item.severity === 'critical' ? '严重' : '关注' }}</n-tag><n-tag size="tiny" :bordered="false">{{ sourceLabels[item.source] }}</n-tag></div><p>{{ item.content }}</p><small>{{ item.riskAt }} · 当前状态 {{ item.status }}</small></div><n-button size="small" secondary @click="router.push(item.route)">查看来源</n-button></article></div>
