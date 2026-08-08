@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useMessage } from 'naive-ui'
-import { BadgeCheck, CircleDollarSign, PackageCheck, Plus, QrCode, Search, Truck, Warehouse } from '@lucide/vue'
+import { BadgeCheck, CircleDollarSign, PackageCheck, Plus, QrCode, Search, Truck, Warehouse } from '@/icons/iconpark'
 import { useFarmStore } from '@/stores/farm'
 import { useProductionStore } from '@/stores/production'
 import type { HarvestBatch } from '@/types'

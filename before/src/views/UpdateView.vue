@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useMessage } from 'naive-ui'
-import { CheckCircle2, Download, RefreshCw, RotateCcw, ShieldCheck } from '@lucide/vue'
+import { CheckCircle2, Download, RefreshCw, RotateCcw, ShieldCheck } from '@/icons/iconpark'
 import PageHeader from '@/components/PageHeader.vue'
 import { useAuthStore } from '@/stores/auth'
 

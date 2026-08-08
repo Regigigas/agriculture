@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useMessage, type FormInst, type FormRules } from 'naive-ui'
-import { MapPin, Plus, Ruler, Shovel, Sprout, UserRound } from '@lucide/vue'
+import { MapPin, Plus, Ruler, Shovel, Sprout, UserRound } from '@/icons/iconpark'
 import { authApi } from '@/api/client'
 import { useAuthStore } from '@/stores/auth'
 import { useFarmStore } from '@/stores/farm'

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
 import { useMessage } from 'naive-ui'
-import { AlertTriangle, BatteryMedium, Check, Clock3, Cpu, MapPin } from '@lucide/vue'
+import { AlertTriangle, BatteryMedium, Check, Clock3, Cpu, MapPin } from '@/icons/iconpark'
 import { useFarmStore } from '@/stores/farm'
 import PageHeader from '@/components/PageHeader.vue'
 import StatePanel from '@/components/StatePanel.vue'

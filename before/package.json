@@ -23,7 +23,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@lucide/vue": "^1.28.0",
+    "@icon-park/vue-next": "^1.4.2",
     "@nestjs/common": "^11.1.28",
     "@nestjs/core": "^11.1.28",
     "@nestjs/platform-express": "^11.1.28",
@@ -38,9 +38,9 @@
     "vue-router": "^4.5.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.54.2",
     "@types/node": "^22.10.2",
     "@types/three": "^0.179.0",
-    "@playwright/test": "^1.54.2",
     "@vitejs/plugin-vue": "^5.2.1",
     "concurrently": "^9.2.1",
     "electron": "^43.2.0",
@@ -71,7 +71,9 @@
     "win": {
       "icon": "build/icon.ico",
       "artifactName": "Fengyu-Agriculture-Desktop-${version}-${arch}.${ext}",
-      "target": ["nsis"]
+      "target": [
+        "nsis"
+      ]
     },
     "nsis": {
       "oneClick": false,

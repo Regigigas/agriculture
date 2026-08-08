@@ -2,7 +2,7 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useMessage } from 'naive-ui'
 import { useRoute, useRouter } from 'vue-router'
-import { AlertTriangle, CheckCircle2, DatabaseBackup, Download, FileClock, FileUp, FolderOpen, RefreshCw, RotateCcw, ShieldAlert } from '@lucide/vue'
+import { AlertTriangle, CheckCircle2, DatabaseBackup, Download, FileClock, FileUp, FolderOpen, RefreshCw, RotateCcw, ShieldAlert } from '@/icons/iconpark'
 import { useOperationsStore } from '@/stores/operations'
 import { useAuthStore } from '@/stores/auth'
 import type { OperationsRisk } from '@/types'

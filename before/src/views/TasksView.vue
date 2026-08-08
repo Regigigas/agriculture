@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useDialog, useMessage, type FormInst, type FormRules } from 'naive-ui'
-import { Check, Play, Plus, Search } from '@lucide/vue'
+import { Check, Play, Plus, Search } from '@/icons/iconpark'
 import { useFarmStore } from '@/stores/farm'
 import type { CreateTaskInput, FarmTask, TaskPriority, TaskStatus } from '@/types'
 import PageHeader from '@/components/PageHeader.vue'

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useDialog, useMessage, type FormInst, type FormRules } from 'naive-ui'
-import { CheckCircle2, ClipboardCheck, Play, Plus, RotateCcw, Search, ShieldAlert } from '@lucide/vue'
+import { CheckCircle2, ClipboardCheck, Play, Plus, RotateCcw, Search, ShieldAlert } from '@/icons/iconpark'
 import { useFarmStore } from '@/stores/farm'
 import type { CreateIssueInput, FieldIssue, IssueCategory, IssueSeverity, IssueStatus } from '@/types'
 import PageHeader from '@/components/PageHeader.vue'

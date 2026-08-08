@@ -32,6 +32,7 @@ import {
 } from 'naive-ui'
 import App from './App.vue'
 import router from './router'
+import '@icon-park/vue-next/styles/index.css'
 import './styles/main.css'
 
 const naive = create({

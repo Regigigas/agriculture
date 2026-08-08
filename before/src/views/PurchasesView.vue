@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useDialog, useMessage } from 'naive-ui'
-import { CircleDollarSign, PackageCheck, Plus, ShoppingCart, Truck } from '@lucide/vue'
+import { CircleDollarSign, PackageCheck, Plus, ShoppingCart, Truck } from '@/icons/iconpark'
 import { useAuthStore } from '@/stores/auth'
 import { useFarmStore } from '@/stores/farm'
 import type { CreatePurchaseInput, PurchaseOrder, PurchaseStatus } from '@/types'

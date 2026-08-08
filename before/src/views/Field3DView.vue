@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useMessage } from 'naive-ui'
-import { Camera, Droplets, MousePointer2, RefreshCw, Ruler, Sprout } from '@lucide/vue'
+import { Camera, Droplets, MousePointer2, RefreshCw, Ruler, Sprout } from '@/icons/iconpark'
 import FieldScene3D from '@/components/FieldScene3D.vue'
 import { useFarmStore } from '@/stores/farm'
 

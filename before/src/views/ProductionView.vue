@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useDialog, useMessage } from 'naive-ui'
-import { CalendarRange, Check, CircleX, ClipboardList, History, Play, Plus, Wheat } from '@lucide/vue'
+import { CalendarRange, Check, CircleX, ClipboardList, History, Play, Plus, Wheat } from '@/icons/iconpark'
 import { useFarmStore } from '@/stores/farm'
 import { useProductionStore } from '@/stores/production'
 import type { CropCycle, CropCycleStatus, OperationType, ProductionPlan, ProductionPlanStatus } from '@/types'

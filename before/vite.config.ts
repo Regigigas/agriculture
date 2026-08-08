@@ -25,7 +25,7 @@ function vendorChunk(id: string): string | undefined {
     path.includes('/seemly/')
   ) return 'vendor-ui-utils'
   if (path.includes('/naive-ui/')) return 'vendor-ui'
-  if (path.includes('/@lucide/')) return 'vendor-icons'
+  if (path.includes('/@icon-park/')) return 'vendor-icons'
   if (
     path.includes('/vue/') ||
     path.includes('/@vue/') ||

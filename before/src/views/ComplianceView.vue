@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useDialog, useMessage } from 'naive-ui'
-import { Archive, FileCheck2, FileClock, FolderOpen, Plus, ShieldCheck } from '@lucide/vue'
+import { Archive, FileCheck2, FileClock, FolderOpen, Plus, ShieldCheck } from '@/icons/iconpark'
 import { useFarmStore } from '@/stores/farm'
 import { useProductionStore } from '@/stores/production'
 import type { ComplianceDocument, FarmContract } from '@/types'

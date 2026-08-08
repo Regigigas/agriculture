@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useMessage } from 'naive-ui'
-import { ArrowLeft, Check, CheckCheck, Cloud, Laptop, LogOut, MessageCircle, Plus, RefreshCw, RotateCcw, Search, Send, Settings, UserPlus, Users } from '@lucide/vue'
+import { ArrowLeft, Check, CheckCheck, Cloud, Laptop, LogOut, MessageCircle, Plus, RefreshCw, RotateCcw, Search, Send, Settings, UserPlus, Users } from '@/icons/iconpark'
 import PageHeader from '@/components/PageHeader.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useChatStore } from '@/stores/chat'

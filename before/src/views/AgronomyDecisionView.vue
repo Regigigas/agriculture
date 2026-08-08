@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { AlertTriangle, Beaker, CalendarClock, CheckCircle2, CloudSun, Coins, Droplets, FileSearch, LineChart, PackageCheck, Radar, Sprout, TriangleAlert } from '@lucide/vue'
+import { AlertTriangle, Beaker, CalendarClock, CheckCircle2, CloudSun, Coins, Droplets, FileSearch, LineChart, PackageCheck, Radar, Sprout, TriangleAlert } from '@/icons/iconpark'
 import { useFarmStore } from '@/stores/farm'
 import { useOperationsStore } from '@/stores/operations'
 import { useProductionStore } from '@/stores/production'

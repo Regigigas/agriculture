@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useDialog, useMessage } from 'naive-ui'
-import { Building2, LandPlot, MapPin, Phone, Plus, UserRound } from '@lucide/vue'
+import { Building2, LandPlot, MapPin, Phone, Plus, UserRound } from '@/icons/iconpark'
 import { useProductionStore } from '@/stores/production'
 import type { BusinessSubject, Farm, SubjectType } from '@/types'
 import PageHeader from '@/components/PageHeader.vue'

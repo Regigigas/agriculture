@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { AlertTriangle, CalendarDays, CheckCircle2, CloudSun, Coins, Droplets, Layers3, RadioTower, ShieldAlert, Sprout, ThermometerSun } from '@lucide/vue'
+import { AlertTriangle, CalendarDays, CheckCircle2, CloudSun, Coins, Droplets, Layers3, RadioTower, ShieldAlert, Sprout, ThermometerSun } from '@/icons/iconpark'
 import type { EChartsOption } from 'echarts'
 import { useFarmStore } from '@/stores/farm'
 import { useOperationsStore } from '@/stores/operations'

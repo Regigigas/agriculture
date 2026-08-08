@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { AlertCircle, Inbox } from '@lucide/vue'
+import { AlertCircle, Inbox } from '@/icons/iconpark'
 import { useMessage } from 'naive-ui'
 import { useRoute } from 'vue-router'
 

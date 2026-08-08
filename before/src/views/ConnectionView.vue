@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useMessage } from 'naive-ui'
-import { Bluetooth, Check, Cloud, Copy, Database, Laptop, RadioTower, RefreshCw, ShieldAlert, Wifi } from '@lucide/vue'
+import { Bluetooth, Check, Cloud, Copy, Database, Laptop, RadioTower, RefreshCw, ShieldAlert, Wifi } from '@/icons/iconpark'
 import PageHeader from '@/components/PageHeader.vue'
 import StatePanel from '@/components/StatePanel.vue'
 import { request } from '@/api/client'

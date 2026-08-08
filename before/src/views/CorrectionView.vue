@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useMessage, type FormInst, type FormRules } from 'naive-ui'
-import { CheckCircle2, CircleDot, ClipboardCheck, RefreshCw, Send, ShieldAlert, Wrench } from '@lucide/vue'
+import { CheckCircle2, CircleDot, ClipboardCheck, RefreshCw, Send, ShieldAlert, Wrench } from '@/icons/iconpark'
 import { useAuthStore } from '@/stores/auth'
 import { useFarmStore } from '@/stores/farm'
 import type { Correction, CorrectionCategory, CorrectionStatus, CreateCorrectionInput, TaskPriority } from '@/types'

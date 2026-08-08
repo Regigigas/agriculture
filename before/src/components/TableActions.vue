@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Ellipsis } from '@lucide/vue'
+import { Ellipsis } from '@/icons/iconpark'
 import type { DropdownOption } from 'naive-ui'
 import type { TableAction } from './table-actions'
 

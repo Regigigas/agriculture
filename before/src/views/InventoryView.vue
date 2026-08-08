@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useMessage, type FormInst, type FormRules } from 'naive-ui'
-import { AlertTriangle, ArrowDownToLine, ArrowUpFromLine, Boxes, ClipboardList, PackagePlus, Plus, RotateCcw, Search, ShoppingCart, SlidersHorizontal } from '@lucide/vue'
+import { AlertTriangle, ArrowDownToLine, ArrowUpFromLine, Boxes, ClipboardList, PackagePlus, Plus, RotateCcw, Search, ShoppingCart, SlidersHorizontal } from '@/icons/iconpark'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useFarmStore } from '@/stores/farm'

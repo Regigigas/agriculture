@@ -2,7 +2,7 @@
 import { reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useMessage, type FormInst, type FormRules } from 'naive-ui'
-import { LockKeyhole, Sprout, UserRound } from '@lucide/vue'
+import { LockKeyhole, Sprout, UserRound } from '@/icons/iconpark'
 import { useAuthStore } from '@/stores/auth'
 
 const auth = useAuthStore()
