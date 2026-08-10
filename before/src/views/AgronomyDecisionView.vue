@@ -97,6 +97,12 @@ const gapItems = computed<GapItem[]>(() => [
     evidence: `${lowStock.value.length} 项农资低于安全库存`,
     nextStep: lowStock.value.length ? '生成采购单并跟踪到货入库' : '按作物阶段滚动维护最低库存',
   },
+  {
+    title: '对照试验与无人机巡测',
+    status: 'done',
+    evidence: '已覆盖施肥、遮光和土壤消毒 3 类对照试验及无人机巡测/作业',
+    nextStep: '按实际地块导入样方边界、重复组和多光谱结果',
+  },
 ])
 
 const score = computed(() => {
@@ -155,7 +161,7 @@ onMounted(() => { loadData() })
         <span class="hero-icon"><LineChart /></span>
         <small>系统完整度</small>
         <strong :class="scoreTone">{{ score }}</strong>
-        <p>分数来自 6 个智慧农业核心能力的覆盖情况，帮助判断下一步先补哪里。</p>
+        <p>分数来自 7 个智慧农业核心能力的覆盖情况，帮助判断下一步先补哪里。</p>
       </div>
       <div class="hero-metrics">
         <button @click="router.push('/production')"><CalendarClock /><span>计划覆盖</span><strong>{{ planCoverage }}%</strong></button>

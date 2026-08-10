@@ -21,6 +21,7 @@ const router = createRouter({
         { path: 'tasks', name: 'tasks', component: () => import('@/views/TasksView.vue'), meta: { title: '生产任务' } },
         { path: 'fields', name: 'fields', component: () => import('@/views/FieldsView.vue'), meta: { title: '农田档案' } },
         { path: 'field-3d', name: 'field-3d', component: () => import('@/views/Field3DView.vue'), meta: { title: '地块三维巡查' } },
+        { path: 'experiments', name: 'experiments', component: () => import('@/views/ExperimentView.vue'), meta: { title: '农业对照试验' } },
         { path: 'production', name: 'production', component: () => import('@/views/ProductionView.vue'), meta: { title: '种植季与生产执行' } },
         { path: 'issues', name: 'issues', component: () => import('@/views/IssuesView.vue'), meta: { title: '巡田问题' } },
         { path: 'devices', name: 'devices', component: () => import('@/views/DevicesView.vue'), meta: { title: '设备监控' } },

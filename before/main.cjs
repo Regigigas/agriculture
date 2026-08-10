@@ -7,6 +7,7 @@ const { pathToFileURL } = require('node:url')
 const { autoUpdater } = require('electron-updater')
 
 const isDevelopment = process.argv.includes('--dev')
+app.setAppUserModelId('com.fengyu.agriculture')
 if (isDevelopment) {
   app.setPath('userData', path.join(app.getPath('appData'), 'fengyu-agriculture-desktop-dev'))
 }
@@ -467,6 +468,10 @@ async function createWindow() {
   } else {
     await mainWindow.loadFile(frontendEntry())
   }
+  if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.isVisible()) {
+    mainWindow.show()
+    mainWindow.focus()
+  }
 }
 
 async function createCorrectionWindow(contextRoute = '') {
@@ -519,6 +524,10 @@ async function createCorrectionWindow(contextRoute = '') {
     await correctionWindow.loadURL('http://127.0.0.1:5173/#/corrections')
   } else {
     await correctionWindow.loadFile(frontendEntry(), { hash: '/corrections' })
+  }
+  if (correctionWindow && !correctionWindow.isDestroyed() && !correctionWindow.isVisible()) {
+    correctionWindow.show()
+    correctionWindow.focus()
   }
 }
 
