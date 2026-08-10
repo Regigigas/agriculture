@@ -27,6 +27,12 @@ test('畜牧养殖中心展示完整业务闭环并可打开新增表单', async
   await expect(page.getByText('没有符合条件的养殖批次', { exact: true })).toBeVisible()
   await page.getByPlaceholder('搜索批次、品种、负责人').fill('西门塔尔')
   await expect(page.getByText('NC-2026-03', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: '重置' }).click()
+  await expect(page.getByPlaceholder('搜索批次、品种、负责人')).toHaveValue('')
+  const cattleRow = page.locator('tbody tr').filter({ hasText: 'NC-2026-03' })
+  await cattleRow.getByRole('button', { name: '饲喂' }).click()
+  await expect(page.getByText('登记饲喂记录', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: '取消' }).last().click()
 
   await page.locator('.n-tabs-tab').filter({ hasText: '健康防疫' }).click()
   await expect(page.getByText('口蹄疫疫苗加强免疫', { exact: true })).toBeVisible()
