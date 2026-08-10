@@ -94,7 +94,7 @@ export interface LocalSyncResult {
 }
 
 const LOCAL_IMPORT_COLLECTIONS = new Set<string>([...SYNC_COLLECTIONS, 'activities']);
-const CURRENT_SCHEMA_VERSION = 3;
+const CURRENT_SCHEMA_VERSION = 4;
 const MAX_IMPORT_FILE_SIZE = 2 * 1024 * 1024 * 1024;
 const MAX_IMPORT_ENTITY_COUNT = 500_000;
 const MAX_IMPORT_TELEMETRY_COUNT = 500_000;
@@ -126,8 +126,10 @@ const IMPORTED_ENTITY_SCHEMAS: Readonly<Record<string, ImportedEntitySchema>> = 
   crop_cycles: { strings: ['id', 'code', 'fieldId', 'crop', 'variety', 'plannedStart', 'plannedHarvest', 'manager', 'status', 'notes', 'createdAt', 'updatedAt'], numbers: ['seasonYear', 'targetYield', 'budget'], nullableStrings: ['actualStart', 'actualHarvest'], enums: { status: ['planned', 'in_progress', 'harvesting', 'completed', 'cancelled'] } },
   production_plans: { strings: ['id', 'cycleId', 'fieldId', 'title', 'operationType', 'plannedDate', 'assignee', 'plannedMaterial', 'status', 'notes', 'createdAt', 'updatedAt'], numbers: ['plannedCost'], nullableStrings: ['completedAt'], enums: { operationType: ['tillage', 'sowing', 'irrigation', 'fertilizing', 'pesticide', 'scouting', 'harvest', 'other'], status: ['planned', 'in_progress', 'completed', 'cancelled'] } },
   operation_logs: { strings: ['id', 'cycleId', 'fieldId', 'operationType', 'occurredAt', 'executor', 'result', 'materialName', 'materialUnit', 'weather', 'notes', 'createdAt'], numbers: ['laborHours', 'cost', 'materialQuantity'], nullableStrings: ['planId', 'inventoryItemId'], enums: { operationType: ['tillage', 'sowing', 'irrigation', 'fertilizing', 'pesticide', 'scouting', 'harvest', 'other'] } },
+  cost_adjustments: { strings: ['id', 'cycleId', 'type', 'evidenceNo', 'reason', 'operator', 'occurredAt', 'createdAt'], numbers: ['amount'], enums: { type: ['supplement', 'reversal'] } },
   harvest_batches: { strings: ['id', 'batchCode', 'traceCode', 'cycleId', 'fieldId', 'product', 'grade', 'unit', 'harvestedAt', 'warehouse', 'qualityStatus', 'inspector', 'notes', 'createdAt', 'updatedAt'], numbers: ['quantity'], enums: { qualityStatus: ['pending', 'passed', 'rejected'] } },
   sales_orders: { strings: ['id', 'orderNo', 'harvestBatchId', 'customer', 'unit', 'soldAt', 'paymentStatus', 'deliveryStatus', 'notes', 'createdAt', 'updatedAt'], numbers: ['quantity', 'unitPrice', 'amount'], enums: { paymentStatus: ['unpaid', 'partial', 'paid'], deliveryStatus: ['pending', 'delivered'] } },
+  invoices: { strings: ['id', 'applicationNo', 'invoiceNo', 'direction', 'sourceType', 'sourceId', 'sourceNo', 'counterparty', 'title', 'taxNumber', 'status', 'applicant', 'notes', 'createdAt', 'updatedAt'], numbers: ['amount'], nullableStrings: ['issuedAt'], enums: { direction: ['output', 'input'], sourceType: ['sales_order', 'purchase'], status: ['pending', 'issued', 'voided'] } },
   compliance_documents: { strings: ['id', 'documentType', 'name', 'documentNo', 'status', 'custodian', 'filePath', 'notes', 'createdAt', 'updatedAt'], nullableStrings: ['subjectId', 'farmId', 'fieldId', 'issueDate', 'expiryDate'], enums: { documentType: ['land', 'inspection', 'input_invoice', 'certification', 'insurance', 'other'], status: ['valid', 'expiring', 'expired'] } },
   farm_contracts: { strings: ['id', 'contractType', 'contractNo', 'title', 'counterparty', 'startDate', 'endDate', 'status', 'filePath', 'notes', 'createdAt', 'updatedAt'], numbers: ['amount', 'reminderDays'], nullableStrings: ['subjectId', 'farmId'], enums: { contractType: ['land_lease', 'purchase', 'outsource', 'sales', 'insurance', 'other'], status: ['draft', 'active', 'expired', 'terminated'] } },
   activities: { strings: ['id', 'type', 'message', 'timestamp'] },
@@ -145,8 +147,10 @@ const IMPORTED_ENTITY_REFERENCES: Readonly<Record<string, Readonly<Record<string
   crop_cycles: { fieldId: 'fields' },
   production_plans: { cycleId: 'crop_cycles', fieldId: 'fields' },
   operation_logs: { cycleId: 'crop_cycles', planId: 'production_plans', fieldId: 'fields', inventoryItemId: 'inventory' },
+  cost_adjustments: { cycleId: 'crop_cycles' },
   harvest_batches: { cycleId: 'crop_cycles', fieldId: 'fields' },
   sales_orders: { harvestBatchId: 'harvest_batches' },
+  invoices: {},
   compliance_documents: { subjectId: 'business_subjects', farmId: 'farms', fieldId: 'fields' },
   farm_contracts: { subjectId: 'business_subjects', farmId: 'farms' },
 };
@@ -161,8 +165,10 @@ const IMPORTED_NUMBER_RANGES: Readonly<Record<string, Readonly<Record<string, re
   crop_cycles: { seasonYear: [2000, 2200], targetYield: [0, 1_000_000_000], budget: [0, 1_000_000_000_000] },
   production_plans: { plannedCost: [0, 1_000_000_000_000] },
   operation_logs: { laborHours: [0, 1_000_000], cost: [0, 1_000_000_000_000], materialQuantity: [0, 1_000_000_000] },
+  cost_adjustments: { amount: [1, 100_000_000_000] },
   harvest_batches: { quantity: [0.001, 1_000_000_000] },
   sales_orders: { quantity: [0.001, 1_000_000_000], unitPrice: [0, 1_000_000_000], amount: [0, 1_000_000_000_000] },
+  invoices: { amount: [0, 1_000_000_000_000] },
   farm_contracts: { amount: [0, 1_000_000_000_000], reminderDays: [0, 3650] },
 };
 
@@ -170,7 +176,7 @@ const IMPORTED_DATE_FIELDS = new Set([
   'createdAt', 'updatedAt', 'completedAt', 'receivedAt', 'closedAt', 'resolvedAt', 'acknowledgedAt',
   'recordedAt', 'lastSeenAt', 'plantedAt', 'expectedHarvestAt', 'dueDate', 'expectedAt', 'observedAt',
   'reviewDueDate', 'plannedStart', 'plannedHarvest', 'actualStart', 'actualHarvest', 'plannedDate',
-  'occurredAt', 'harvestedAt', 'soldAt', 'issueDate', 'expiryDate', 'startDate', 'endDate', 'timestamp',
+  'occurredAt', 'harvestedAt', 'soldAt', 'issuedAt', 'issueDate', 'expiryDate', 'startDate', 'endDate', 'timestamp',
 ]);
 
 @Injectable()
@@ -363,6 +369,11 @@ export class LocalDatabase implements OnModuleDestroy {
           ON operation_authorizations(expires_at);
         `),
       },
+      {
+        version: 4,
+        description: '金额字段统一由元迁移为整数分',
+        up: () => this.migrateMoneyFieldsToCents(),
+      },
     ];
     const applied = new Set(
       (this.database.prepare('SELECT version FROM schema_migrations').all() as unknown as Array<{ version: number }>)
@@ -385,6 +396,28 @@ export class LocalDatabase implements OnModuleDestroy {
         throw new Error(`数据库结构不完整，缺少数据表 ${table}`);
       }
     }
+  }
+
+  private migrateMoneyFieldsToCents(): void {
+    const fields: Record<string, readonly string[]> = {
+      purchases: ['unitPrice', 'amount'], crop_cycles: ['budget'], production_plans: ['plannedCost'],
+      operation_logs: ['cost'], cost_adjustments: ['amount'],
+      sales_orders: ['unitPrice', 'amount', 'initialCost', 'processCost', 'cumulativeRevenue', 'estimatedProfit', 'actualProfit', 'projectedProfit'], invoices: ['amount'],
+      farm_contracts: ['amount'],
+    };
+    const convert = (collection: string, raw: string): string => {
+      const moneyFields = fields[collection];
+      if (!moneyFields) return raw;
+      const payload = JSON.parse(raw) as Record<string, unknown>;
+      for (const field of moneyFields) if (typeof payload[field] === 'number') payload[field] = Math.round((payload[field] as number) * 100);
+      return JSON.stringify(payload);
+    };
+    const entityRows = this.database.prepare('SELECT collection, id, payload FROM entities').all() as unknown as Array<{ collection: string; id: string; payload: string }>;
+    const updateEntity = this.database.prepare('UPDATE entities SET payload = ? WHERE collection = ? AND id = ?');
+    for (const row of entityRows) updateEntity.run(convert(row.collection, row.payload), row.collection, row.id);
+    const outboxRows = this.database.prepare('SELECT event_id AS eventId, collection, payload FROM sync_outbox').all() as unknown as Array<{ eventId: string; collection: string; payload: string }>;
+    const updateOutbox = this.database.prepare('UPDATE sync_outbox SET payload = ? WHERE event_id = ?');
+    for (const row of outboxRows) updateOutbox.run(convert(row.collection, row.payload), row.eventId);
   }
 
   loadCollection<T extends StoredEntity>(collection: string, seed: readonly T[]): T[] {
@@ -934,6 +967,13 @@ export class LocalDatabase implements OnModuleDestroy {
       if (value < minimum || value > maximum) throw new Error(`记录 ${collection}/${entity.id} 的字段 ${field} 超出范围`);
     }
     if (collection === 'crop_cycles' && !Number.isInteger(entity.seasonYear)) throw new Error(`记录 ${collection}/${entity.id} 的 seasonYear 必须是整数`);
+    const moneyFields: Record<string, readonly string[]> = {
+      purchases: ['unitPrice', 'amount'], crop_cycles: ['budget'], production_plans: ['plannedCost'], operation_logs: ['cost'],
+      cost_adjustments: ['amount'], sales_orders: ['unitPrice', 'amount'], invoices: ['amount'], farm_contracts: ['amount'],
+    };
+    for (const field of moneyFields[collection] ?? []) {
+      if (!Number.isSafeInteger(entity[field])) throw new Error(`记录 ${collection}/${entity.id} 的金额字段 ${field} 必须是整数分`);
+    }
     if (collection === 'farm_contracts' && !Number.isInteger(entity.reminderDays)) throw new Error(`记录 ${collection}/${entity.id} 的 reminderDays 必须是整数`);
     for (const [field, value] of Object.entries(entity)) {
       if (value !== null && IMPORTED_DATE_FIELDS.has(field) && (typeof value !== 'string' || !this.validImportedDate(value))) {
@@ -955,8 +995,8 @@ export class LocalDatabase implements OnModuleDestroy {
     if (collection === 'corrections') this.assertImportedCompletionState(collection, entity, 'resolved', 'resolvedAt');
     if (collection === 'production_plans') this.assertImportedCompletionState(collection, entity, 'completed', 'completedAt');
     if (collection === 'purchases' || collection === 'sales_orders') {
-      const expected = (entity.quantity as number) * (entity.unitPrice as number);
-      if (Math.abs((entity.amount as number) - expected) > 0.01) throw new Error(`记录 ${collection}/${entity.id} 的金额与数量单价不一致`);
+      const expected = Math.round((entity.quantity as number) * (entity.unitPrice as number));
+      if ((entity.amount as number) !== expected) throw new Error(`记录 ${collection}/${entity.id} 的金额与数量单价不一致`);
     }
   }
 

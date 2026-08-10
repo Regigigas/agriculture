@@ -8,6 +8,7 @@ import { useOperationsStore } from '@/stores/operations'
 import { formatSolarTermDate, getSolarTermPlan } from '@/solarTerms'
 import EChart from '@/components/EChart.vue'
 import StatePanel from '@/components/StatePanel.vue'
+import { formatCents } from '@/types/money'
 
 const farm = useFarmStore()
 const operations = useOperationsStore()
@@ -17,7 +18,7 @@ const metrics = computed(() => d.value.metrics)
 const environment = computed(() => d.value.environment)
 const solarTermPlan = computed(() => getSolarTermPlan())
 const formatTime = (value: string) => new Date(value).toLocaleString('zh-CN', { hour12: false })
-const money = (value: number) => new Intl.NumberFormat('zh-CN', { style: 'currency', currency: 'CNY', maximumFractionDigits: 0 }).format(value)
+const money = (value: number) => formatCents(value, 0)
 const cropOption = computed<EChartsOption>(() => ({
   tooltip: { trigger: 'item', confine: true },
   legend: {
@@ -99,7 +100,7 @@ onMounted(() => Promise.all([farm.loadDashboard(), operations.loadSummary()]).ca
 
     <div class="business-strip">
       <button @click="router.push('/production')"><span><Layers3 /></span><div><small>活跃种植季</small><strong>{{ operations.summary.activeCycles }}</strong><em>{{ operations.summary.pendingPlans }} 项计划待执行</em></div></button>
-      <button @click="router.push('/traceability')"><span><Coins /></span><div><small>销售收入</small><strong>{{ money(operations.summary.salesRevenue) }}</strong><em>待收 {{ money(operations.summary.receivables) }}</em></div></button>
+      <button @click="router.push('/profit')"><span><Coins /></span><div><small>真实利润 / 预估利润</small><strong>{{ money(operations.summary.realizedProfit) }}</strong><em>预估 {{ money(operations.summary.projectedProfit) }}</em></div></button>
       <button @click="router.push('/operations')"><span><ShieldAlert /></span><div><small>开放经营风险</small><strong>{{ operations.summary.openRisks }}</strong><em>{{ operations.summary.criticalRisks }} 项严重风险</em></div></button>
     </div>
 

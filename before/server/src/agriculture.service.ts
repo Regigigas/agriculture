@@ -1,5 +1,6 @@
 import { HttpException, HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'crypto';
+import { assertIntegerCents, multiplyCents } from './money';
 import {
   Activity,
   Alert,
@@ -108,7 +109,7 @@ export class AgricultureService {
     this.alerts = this.database.loadCollection('alerts', this.alerts);
     this.inventory = this.database.loadCollection('inventory', this.inventory);
     this.inventoryTransactions = this.database.loadCollection('inventory_transactions', this.inventoryTransactions);
-    this.purchases = this.database.loadCollection('purchases', this.purchases);
+    this.purchases = this.database.loadCollection('purchases', this.purchases.map((item) => ({ ...item, unitPrice: Math.round(item.unitPrice * 100), amount: Math.round(item.amount * 100) })));
     this.issues = this.database.loadCollection('issues', this.issues);
     this.corrections = this.database.loadCollection('corrections', this.corrections);
     this.activities = this.database.loadCollection('activities', this.activities);
@@ -448,7 +449,7 @@ export class AgricultureService {
     const item = this.inventory.find((candidate) => candidate.id === inventoryItemId);
     if (!item) throw new NotFoundException(`库存项目 ${inventoryItemId} 不存在`);
     const quantity = this.roundQuantity(this.numberInRange(input, 'quantity', 0.01, 1000000));
-    const unitPrice = this.roundMoney(this.numberInRange(input, 'unitPrice', 0, 1000000));
+    const unitPrice = assertIntegerCents(this.numberInRange(input, 'unitPrice', 0, 100000000), 'unitPrice');
     const now = new Date().toISOString();
     const values = {
       inventoryItemId: item.id,
@@ -456,7 +457,7 @@ export class AgricultureService {
       quantity,
       unit: item.unit,
       unitPrice,
-      amount: this.roundMoney(quantity * unitPrice),
+      amount: multiplyCents(quantity, unitPrice),
       supplier: this.limitedRequiredString(input, 'supplier', 100),
       expectedAt: this.dateString(input, 'expectedAt'),
       buyer: this.limitedRequiredString(input, 'buyer', 40),

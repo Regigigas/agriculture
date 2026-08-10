@@ -379,6 +379,18 @@ export interface OperationLog {
   createdAt: string
 }
 
+export interface CostAdjustment {
+  id: string
+  cycleId: string
+  type: 'supplement' | 'reversal'
+  amount: number
+  evidenceNo: string
+  reason: string
+  operator: string
+  occurredAt: string
+  createdAt: string
+}
+
 export interface HarvestBatch {
   id: string
   batchCode: string
@@ -407,9 +419,35 @@ export interface SalesOrder {
   unit: string
   unitPrice: number
   amount: number
+  initialCost?: number
+  processCost?: number
+  cumulativeRevenue?: number
+  estimatedProfit?: number
+  actualProfit?: number
+  projectedProfit?: number
   soldAt: string
   paymentStatus: 'unpaid' | 'partial' | 'paid'
   deliveryStatus: 'pending' | 'delivered'
+  notes: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface Invoice {
+  id: string
+  applicationNo: string
+  invoiceNo: string
+  direction: 'output' | 'input'
+  sourceType: 'sales_order' | 'purchase'
+  sourceId: string
+  sourceNo: string
+  counterparty: string
+  title: string
+  taxNumber: string
+  amount: number
+  status: 'pending' | 'issued' | 'voided'
+  applicant: string
+  issuedAt: string | null
   notes: string
   createdAt: string
   updatedAt: string
@@ -490,6 +528,8 @@ export interface OperationsSummary {
   actualCost: number
   harvestQuantity: number
   salesRevenue: number
+  realizedProfit: number
+  projectedProfit: number
   receivables: number
   criticalRisks: number
   openRisks: number

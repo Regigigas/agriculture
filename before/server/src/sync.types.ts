@@ -13,8 +13,10 @@ export const SYNC_COLLECTIONS = [
   'crop_cycles',
   'production_plans',
   'operation_logs',
+  'cost_adjustments',
   'harvest_batches',
   'sales_orders',
+  'invoices',
   'compliance_documents',
   'farm_contracts',
 ] as const;

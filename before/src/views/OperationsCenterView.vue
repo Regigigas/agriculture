@@ -8,6 +8,7 @@ import { useAuthStore } from '@/stores/auth'
 import type { OperationsRisk } from '@/types'
 import PageHeader from '@/components/PageHeader.vue'
 import StatePanel from '@/components/StatePanel.vue'
+import { formatCents } from '@/types/money'
 
 const operations = useOperationsStore()
 const auth = useAuthStore()
@@ -38,7 +39,7 @@ const s = computed(() => operations.summary)
 const sourceLabels: Record<OperationsRisk['source'], string> = { alert: '设备告警', task: '生产任务', issue: '巡田问题', inventory: '库存台账', cycle: '种植季', quality: '采收质检', contract: '农业合同', document: '合规文书' }
 const domainLabels: Record<string, string> = { subject: '经营主体', farm: '农场', field: '地块', task: '任务', alert: '设备告警', inventory: '库存', issue: '巡田问题', crop_cycle: '种植季', production_plan: '生产计划', operation_log: '农事实绩', harvest_batch: '采收批次', sales_order: '销售订单', document: '合规文书', contract: '农业合同', correction: '纠错工单', system: '系统' }
 const actionLabel = (action: string) => action.startsWith('status:') ? `状态变更为 ${action.slice(7)}` : action.startsWith('transaction:') ? `库存${action.slice(12)}` : action.startsWith('quality:') ? `质检${action.slice(8)}` : ({ create: '新建', archive: '归档', acknowledge: '确认', backup: '创建备份', uproot: '挖除作物', update_status: '更新状态' }[action] || action)
-function money(value: number) { return new Intl.NumberFormat('zh-CN', { style: 'currency', currency: 'CNY', maximumFractionDigits: 0 }).format(value) }
+const money = (value: number) => formatCents(value, 0)
 function bytes(value: number) { return value < 1024 * 1024 ? `${(value / 1024).toFixed(1)} KB` : `${(value / 1024 / 1024).toFixed(2)} MB` }
 async function refresh() {
   const loaders = activeTab.value === 'data'

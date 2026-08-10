@@ -16,8 +16,22 @@ export class OperationsCenterService {
     const cycles = this.production.getCycles();
     const plans = this.production.getPlans();
     const logs = this.production.getOperationLogs();
+    const costAdjustments = this.production.getCostAdjustments();
     const harvests = this.production.getHarvestBatches();
     const sales = this.production.getSalesOrders();
+    const settledCycleIds = new Set(sales.map((sale) => harvests.find((batch) => batch.id === sale.harvestBatchId)?.cycleId).filter(Boolean));
+    const settledCosts = cycles.filter((cycle) => settledCycleIds.has(cycle.id)).reduce((sum, cycle) => sum + cycle.budget + logs.filter((log) => log.cycleId === cycle.id).reduce((cost, log) => cost + log.cost, 0) + costAdjustments.filter((item) => item.cycleId === cycle.id).reduce((cost, item) => cost + (item.type === 'supplement' ? item.amount : -item.amount), 0), 0);
+    const salesRevenue = sales.reduce((sum, item) => sum + item.amount, 0);
+    const projectedRevenue = cycles.filter((cycle) => settledCycleIds.has(cycle.id)).reduce((sum, cycle) => {
+      const cycleBatches = harvests.filter((batch) => batch.cycleId === cycle.id && batch.qualityStatus === 'passed');
+      const batchIds = new Set(cycleBatches.map((batch) => batch.id));
+      const cycleSales = sales.filter((sale) => batchIds.has(sale.harvestBatchId));
+      const revenue = cycleSales.reduce((total, sale) => total + sale.amount, 0);
+      const soldQuantity = cycleSales.reduce((total, sale) => total + sale.quantity, 0);
+      const sellableQuantity = cycleBatches.reduce((total, batch) => total + batch.quantity, 0);
+      const latestPrice = cycleSales[0]?.unitPrice || 0;
+      return sum + revenue + Math.max(0, sellableQuantity - soldQuantity) * latestPrice;
+    }, 0);
     const risks = this.risks();
     return {
       activeSubjects: this.production.getSubjects().filter((item) => item.status === 'active').length,
@@ -25,9 +39,11 @@ export class OperationsCenterService {
       activeCycles: cycles.filter((item) => ['planned', 'in_progress', 'harvesting'].includes(item.status)).length,
       pendingPlans: plans.filter((item) => ['planned', 'in_progress'].includes(item.status)).length,
       plannedBudget: cycles.filter((item) => item.status !== 'cancelled').reduce((sum, item) => sum + item.budget, 0),
-      actualCost: logs.reduce((sum, item) => sum + item.cost, 0),
+      actualCost: logs.reduce((sum, item) => sum + item.cost, 0) + costAdjustments.reduce((sum, item) => sum + (item.type === 'supplement' ? item.amount : -item.amount), 0),
       harvestQuantity: harvests.reduce((sum, item) => sum + item.quantity, 0),
-      salesRevenue: sales.reduce((sum, item) => sum + item.amount, 0),
+      salesRevenue,
+      realizedProfit: salesRevenue - settledCosts,
+      projectedProfit: projectedRevenue - settledCosts,
       receivables: sales.filter((item) => item.paymentStatus !== 'paid').reduce((sum, item) => sum + item.amount, 0),
       criticalRisks: risks.filter((item) => item.severity === 'critical').length,
       openRisks: risks.length,

@@ -157,6 +157,21 @@ describe('本地账号、权限与聊天', () => {
       .toThrow('已使用');
   });
 
+  it('只允许编辑待处理的发票申请', () => {
+    const agriculture = new AgricultureService(database);
+    const production = new ProductionService(database, agriculture);
+    const invoice = production.createInvoice({
+      sourceType: 'sales_order', sourceId: 'sale-001', title: '原发票抬头', taxNumber: '', applicant: '李明', notes: '',
+    });
+    expect(production.updateInvoice(invoice.id, {
+      title: '新发票抬头', taxNumber: '91410800TEST001', applicant: '王芳', notes: '修改申请信息',
+    })).toMatchObject({ title: '新发票抬头', taxNumber: '91410800TEST001', applicant: '王芳', notes: '修改申请信息' });
+    production.updateInvoiceStatus(invoice.id, { status: 'issued', invoiceNo: 'INV-TEST-001', issuedAt: '2026-08-10' });
+    expect(() => production.updateInvoice(invoice.id, {
+      title: '禁止修改', taxNumber: '', applicant: '王芳', notes: '',
+    })).toThrow('只有待处理的发票申请可以编辑');
+  });
+
   it('账号和聊天表随 agriculture.db 备份', () => {
     const user = auth.createUser({ username: 'backup_user', password: 'Backup123', name: '备份用户' });
     const conversation = chat.createPrivate('user-admin', user.id);

@@ -7,6 +7,7 @@ import { useOperationsStore } from '@/stores/operations'
 import { useProductionStore } from '@/stores/production'
 import PageHeader from '@/components/PageHeader.vue'
 import StatePanel from '@/components/StatePanel.vue'
+import { formatCents } from '@/types/money'
 
 type GapStatus = 'done' | 'partial' | 'missing'
 
@@ -46,9 +47,12 @@ const offlineDevices = computed(() => farm.devices.filter((item) => item.status 
 const irrigationAlerts = computed(() => farm.devices.filter((item) => item.telemetry.soilMoisture < 45 || item.telemetry.temperature > 32))
 
 const plannedBudget = computed(() => production.cycles.filter((item) => item.status !== 'cancelled').reduce((sum, item) => sum + item.budget, 0))
-const actualCost = computed(() => production.logs.reduce((sum, item) => sum + item.cost, 0))
+const processCost = computed(() => production.logs.reduce((sum, item) => sum + item.cost, 0) + production.costAdjustments.reduce((sum, item) => sum + (item.type === 'supplement' ? item.amount : -item.amount), 0))
 const salesRevenue = computed(() => production.sales.reduce((sum, item) => sum + item.amount, 0))
-const grossMargin = computed(() => salesRevenue.value - actualCost.value)
+const settledCycleIds = computed(() => new Set(production.sales.map((sale) => production.harvests.find((batch) => batch.id === sale.harvestBatchId)?.cycleId).filter((id): id is string => Boolean(id))))
+const settledInitialCost = computed(() => production.cycles.filter((cycle) => settledCycleIds.value.has(cycle.id)).reduce((sum, cycle) => sum + cycle.budget, 0))
+const settledProcessCost = computed(() => production.logs.filter((item) => settledCycleIds.value.has(item.cycleId)).reduce((sum, item) => sum + item.cost, 0) + production.costAdjustments.filter((item) => settledCycleIds.value.has(item.cycleId)).reduce((sum, item) => sum + (item.type === 'supplement' ? item.amount : -item.amount), 0))
+const grossMargin = computed(() => salesRevenue.value - settledInitialCost.value - settledProcessCost.value)
 const traceCoverage = computed(() => {
   if (!production.harvests.length) return 0
   const withTrace = production.harvests.filter((item) => item.traceCode && item.batchCode).length
@@ -87,8 +91,8 @@ const gapItems = computed<GapItem[]>(() => [
   },
   {
     title: '成本收益核算',
-    status: production.sales.length || actualCost.value ? 'partial' : 'missing',
-    evidence: `收入 ${money(salesRevenue.value)}，成本 ${money(actualCost.value)}`,
+    status: production.sales.length || processCost.value ? 'partial' : 'missing',
+    evidence: `收入 ${money(salesRevenue.value)}，已结算成本 ${money(settledInitialCost.value + settledProcessCost.value)}`,
     nextStep: '把农事人工、物料、销售回款纳入单季毛利看板',
   },
   {
@@ -126,9 +130,7 @@ const scoreTone = computed(() => score.value >= 80 ? 'good' : score.value >= 60 
 const statusLabels: Record<GapStatus, string> = { done: '已覆盖', partial: '需完善', missing: '待建设' }
 const statusTypes: Record<GapStatus, 'success' | 'warning' | 'error'> = { done: 'success', partial: 'warning', missing: 'error' }
 
-function money(value: number) {
-  return new Intl.NumberFormat('zh-CN', { style: 'currency', currency: 'CNY', maximumFractionDigits: 0 }).format(value)
-}
+const money = (value: number) => formatCents(value, 0)
 
 function localDateKey(value: Date) {
   return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`
@@ -203,7 +205,7 @@ onMounted(() => { loadData() })
         <article><Beaker /><span>质检风险</span><strong>{{ pendingQuality.length + failedQuality.length }}</strong><small>{{ failedQuality.length }} 批未通过</small></article>
         <article><FileSearch /><span>开放风险</span><strong>{{ operations.summary.openRisks }}</strong><small>{{ operations.summary.criticalRisks }} 项严重风险</small></article>
         <article><AlertTriangle /><span>巡田问题</span><strong>{{ activeIssues.length }}</strong><small>病虫害、灌溉和设备闭环</small></article>
-        <article><Coins /><span>预算消耗</span><strong>{{ plannedBudget ? Math.round((actualCost / plannedBudget) * 100) : 0 }}%</strong><small>已记成本 {{ money(actualCost) }}</small></article>
+        <article><Coins /><span>预算消耗</span><strong>{{ plannedBudget ? Math.round((processCost / plannedBudget) * 100) : 0 }}%</strong><small>过程成本 {{ money(processCost) }}</small></article>
       </div>
     </section>
   </state-panel>

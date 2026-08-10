@@ -17,6 +17,9 @@ test('畜牧养殖中心展示完整业务闭环并可打开新增表单', async
   await expect(page.getByText('今日工作台', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: '收起 3D' }).click()
   await expect(page.getByTestId('livestock-3d-scene')).toBeHidden()
+  await page.goto('/#/dashboard')
+  await page.goto('/#/livestock')
+  await expect(page.getByTestId('livestock-3d-scene')).toBeHidden()
   await page.getByRole('button', { name: '打开 3D 牧场' }).click()
   await expect(page.getByTestId('livestock-3d-scene')).toBeVisible()
 

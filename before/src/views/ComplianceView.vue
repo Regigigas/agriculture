@@ -9,6 +9,7 @@ import PageHeader from '@/components/PageHeader.vue'
 import StatePanel from '@/components/StatePanel.vue'
 import TableActions from '@/components/TableActions.vue'
 import type { TableAction } from '@/components/table-actions'
+import { formatCents, yuanToCents } from '@/types/money'
 
 const farm = useFarmStore()
 const production = useProductionStore()
@@ -35,7 +36,7 @@ const contractValue = computed(() => production.contracts.filter((item) => ['dra
 const subjectName = (id: string | null) => id ? production.subjects.find((item) => item.id === id)?.name || '未知主体' : '-'
 const farmName = (id: string | null) => id ? production.farms.find((item) => item.id === id)?.name || '未知农场' : '-'
 function localDateKey() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
-function money(value: number) { return new Intl.NumberFormat('zh-CN', { style: 'currency', currency: 'CNY', maximumFractionDigits: 0 }).format(value) }
+const money = (value: number) => formatCents(value, 0)
 
 watch(() => documentForm.subjectId, () => {
   if (documentForm.farmId && !production.farms.some((item) => item.id === documentForm.farmId && (!documentForm.subjectId || item.subjectId === documentForm.subjectId))) documentForm.farmId = null
@@ -65,7 +66,7 @@ async function createDocument() {
 }
 async function createContract() {
   if (!contractForm.contractNo.trim() || !contractForm.title.trim() || !contractForm.counterparty.trim()) return message.warning('请填写合同编号、名称和相对方')
-  try { await production.createContract({ ...contractForm }); showContract.value = false; message.success('合同已建立，当前为草稿') } catch { message.error(production.errors.contractMutation) }
+  try { await production.createContract({ ...contractForm, amount: yuanToCents(contractForm.amount) }); showContract.value = false; message.success('合同已建立，当前为草稿') } catch { message.error(production.errors.contractMutation) }
 }
 async function contractStatus(item: FarmContract, status: FarmContract['status']) {
   try { await production.updateContractStatus(item.id, status); message.success('合同状态已更新') } catch { message.error(production.errors.contractMutation) }

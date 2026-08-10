@@ -1,16 +1,21 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { useDialog, useMessage } from 'naive-ui'
-import { CircleDollarSign, PackageCheck, Plus, ShoppingCart, Truck } from '@/icons/iconpark'
+import { CircleDollarSign, FileClock, PackageCheck, Plus, ShoppingCart, Truck } from '@/icons/iconpark'
 import { useAuthStore } from '@/stores/auth'
 import { useFarmStore } from '@/stores/farm'
+import { useProductionStore } from '@/stores/production'
 import type { CreatePurchaseInput, PurchaseOrder, PurchaseStatus } from '@/types'
 import PageHeader from '@/components/PageHeader.vue'
 import StatePanel from '@/components/StatePanel.vue'
 import TableActions from '@/components/TableActions.vue'
 import type { TableAction } from '@/components/table-actions'
+import { formatCents, multiplyToCents, yuanToCents } from '@/types/money'
 
 const farm = useFarmStore()
+const production = useProductionStore()
+const router = useRouter()
 const auth = useAuthStore()
 const dialog = useDialog()
 const message = useMessage()
@@ -23,16 +28,16 @@ const filtered = computed(() => statusFilter.value === 'all' ? farm.purchases : 
 const pending = computed(() => farm.purchases.filter((item) => item.status === 'pending'))
 const pendingAmount = computed(() => pending.value.reduce((sum, item) => sum + item.amount, 0))
 const receivedAmount = computed(() => farm.purchases.filter((item) => item.status === 'received').reduce((sum, item) => sum + item.amount, 0))
-const estimatedAmount = computed(() => Math.round((form.quantity || 0) * (form.unitPrice || 0) * 100) / 100)
+const estimatedAmount = computed(() => multiplyToCents(form.quantity || 0, yuanToCents(form.unitPrice || 0)))
 
 function operatorName() { return auth.user?.name || auth.user?.username || '系统管理员' }
 function addDays(days: number) { const date = new Date(); date.setDate(date.getDate() + days); return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}` }
-function money(value: number) { return new Intl.NumberFormat('zh-CN', { style: 'currency', currency: 'CNY', minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(value) }
+const money = (value: number) => formatCents(value)
 async function openCreate() { if (!farm.inventory.length) { try { await farm.loadInventory() } catch { return message.error(farm.errors.inventory) } }; Object.assign(form, { inventoryItemId: '', quantity: 1, unitPrice: 0, supplier: '', expectedAt: addDays(7), buyer: operatorName(), notes: '' }); showCreate.value = true }
 async function createPurchase() {
   const quantity = form.quantity; const unitPrice = form.unitPrice
   if (!form.inventoryItemId || !form.supplier.trim() || !form.buyer.trim() || !form.expectedAt || quantity === null || !Number.isFinite(quantity) || quantity <= 0 || unitPrice === null || !Number.isFinite(unitPrice) || unitPrice < 0) return message.warning('请完整填写有效的采购信息')
-  try { await farm.createPurchase({ ...form, quantity, unitPrice }); showCreate.value = false; message.success('采购单已创建') } catch { message.error(farm.errors.purchaseMutation) }
+  try { await farm.createPurchase({ ...form, quantity, unitPrice: yuanToCents(unitPrice) }); showCreate.value = false; message.success('采购单已创建') } catch { message.error(farm.errors.purchaseMutation) }
 }
 function receive(item: PurchaseOrder) {
   dialog.warning({ title: '确认到货入库', content: `确认 ${item.orderNo} 的 ${item.quantity} ${item.unit}“${item.itemName}”已全部到货？确认后将增加库存。`, positiveText: '确认入库', negativeText: '取消', onPositiveClick: async () => {
@@ -40,10 +45,12 @@ function receive(item: PurchaseOrder) {
   } })
 }
 function purchaseActions(item: PurchaseOrder): TableAction[] {
-  if (item.status !== 'pending') return []
-  return [{ key: 'receive', label: '确认到货', icon: PackageCheck, type: 'primary', loading: farm.loading.purchaseMutation, onClick: () => receive(item) }]
+  const hasInvoice = production.invoices.some((invoice) => invoice.sourceType === 'purchase' && invoice.sourceId === String(item.id) && invoice.status !== 'voided')
+  const actions: TableAction[] = [{ key: 'invoice', label: hasInvoice ? '查看发票' : '收票', icon: FileClock, secondary: true, onClick: () => router.push({ path: '/invoices', query: { sourceType: 'purchase', sourceId: String(item.id) } }) }]
+  if (item.status === 'pending') actions.unshift({ key: 'receive', label: '确认到货', icon: PackageCheck, type: 'primary', loading: farm.loading.purchaseMutation, onClick: () => receive(item) })
+  return actions
 }
-onMounted(() => Promise.allSettled([farm.loadPurchases(), farm.loadInventory()]))
+onMounted(() => Promise.allSettled([farm.loadPurchases(), farm.loadInventory(), production.loadInvoices()]))
 </script>
 
 <template>

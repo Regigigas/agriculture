@@ -5,11 +5,13 @@ import type {
   ActiveStatus,
   BusinessSubject,
   ComplianceDocument,
+  CostAdjustment,
   CropCycle,
   CropCycleStatus,
   Farm,
   FarmContract,
   HarvestBatch,
+  Invoice,
   OperationLog,
   ProductionPlan,
   ProductionPlanStatus,
@@ -23,8 +25,10 @@ export const useProductionStore = defineStore('production', () => {
   const cycles = ref<CropCycle[]>([])
   const plans = ref<ProductionPlan[]>([])
   const logs = ref<OperationLog[]>([])
+  const costAdjustments = ref<CostAdjustment[]>([])
   const harvests = ref<HarvestBatch[]>([])
   const sales = ref<SalesOrder[]>([])
+  const invoices = ref<Invoice[]>([])
   const documents = ref<ComplianceDocument[]>([])
   const contracts = ref<FarmContract[]>([])
   const traceResult = ref<TraceResult | null>(null)
@@ -44,14 +48,16 @@ export const useProductionStore = defineStore('production', () => {
   const loadCycles = () => run('cycles', async () => { cycles.value = await request<CropCycle[]>('/crop-cycles') })
   const loadPlans = () => run('plans', async () => { plans.value = await request<ProductionPlan[]>('/production-plans') })
   const loadLogs = () => run('logs', async () => { logs.value = await request<OperationLog[]>('/operation-logs') })
+  const loadCostAdjustments = () => run('costAdjustments', async () => { costAdjustments.value = await request<CostAdjustment[]>('/cost-adjustments') })
   const loadHarvests = () => run('harvests', async () => { harvests.value = await request<HarvestBatch[]>('/harvest-batches') })
   const loadSales = () => run('sales', async () => { sales.value = await request<SalesOrder[]>('/sales-orders') })
+  const loadInvoices = () => run('invoices', async () => { invoices.value = await request<Invoice[]>('/invoices') })
   const loadDocuments = () => run('documents', async () => { documents.value = await request<ComplianceDocument[]>('/compliance-documents') })
   const loadContracts = () => run('contracts', async () => { contracts.value = await request<FarmContract[]>('/farm-contracts') })
 
   const loadOrganization = () => Promise.all([loadSubjects(), loadFarms()])
-  const loadProduction = () => Promise.all([loadCycles(), loadPlans(), loadLogs()])
-  const loadTraceability = () => Promise.all([loadHarvests(), loadSales(), loadCycles()])
+  const loadProduction = () => Promise.all([loadCycles(), loadPlans(), loadLogs(), loadCostAdjustments()])
+  const loadTraceability = () => Promise.all([loadHarvests(), loadSales(), loadCycles(), loadLogs(), loadCostAdjustments()])
   const loadCompliance = () => Promise.all([loadDocuments(), loadContracts(), loadSubjects(), loadFarms()])
 
   const createSubject = (input: Record<string, unknown>) => run('subjectMutation', async () => {
@@ -94,6 +100,10 @@ export const useProductionStore = defineStore('production', () => {
     if (created.planId) { const plan = plans.value.find((item) => item.id === created.planId); if (plan) plan.status = 'completed' }
     return created
   })
+  const createCostAdjustment = (input: Record<string, unknown>) => run('costAdjustmentMutation', async () => {
+    const created = await request<CostAdjustment>('/cost-adjustments', { method: 'POST', body: JSON.stringify(input) })
+    costAdjustments.value.unshift(created); return created
+  })
   const createHarvest = (input: Record<string, unknown>) => run('harvestMutation', async () => {
     const created = await request<HarvestBatch>('/harvest-batches', { method: 'POST', body: JSON.stringify(input) })
     harvests.value.unshift(created)
@@ -112,6 +122,18 @@ export const useProductionStore = defineStore('production', () => {
   const updateSaleStatus = (id: string, input: Partial<Pick<SalesOrder, 'paymentStatus' | 'deliveryStatus'>>) => run('saleMutation', async () => {
     const updated = await request<SalesOrder>(`/sales-orders/${id}/status`, { method: 'PATCH', body: JSON.stringify(input) })
     replace(sales.value, updated); return updated
+  })
+  const createInvoice = (input: Record<string, unknown>) => run('invoiceMutation', async () => {
+    const created = await request<Invoice>('/invoices', { method: 'POST', body: JSON.stringify(input) })
+    invoices.value.unshift(created); return created
+  })
+  const updateInvoice = (id: string, input: Pick<Invoice, 'title' | 'taxNumber' | 'applicant' | 'notes'>) => run('invoiceMutation', async () => {
+    const updated = await request<Invoice>(`/invoices/${id}`, { method: 'PATCH', body: JSON.stringify(input) })
+    replace(invoices.value, updated); return updated
+  })
+  const updateInvoiceStatus = (id: string, input: { status: 'issued' | 'voided'; invoiceNo?: string; issuedAt?: string }) => run('invoiceMutation', async () => {
+    const updated = await request<Invoice>(`/invoices/${id}/status`, { method: 'PATCH', body: JSON.stringify(input) })
+    replace(invoices.value, updated); return updated
   })
   const queryTrace = (code: string) => {
     traceResult.value = null
@@ -141,8 +163,10 @@ export const useProductionStore = defineStore('production', () => {
     cycles.value = []
     plans.value = []
     logs.value = []
+    costAdjustments.value = []
     harvests.value = []
     sales.value = []
+    invoices.value = []
     documents.value = []
     contracts.value = []
     traceResult.value = null
@@ -151,12 +175,12 @@ export const useProductionStore = defineStore('production', () => {
   }
 
   return {
-    subjects, farms, cycles, plans, logs, harvests, sales, documents, contracts, traceResult, loading, errors,
-    loadSubjects, loadFarms, loadCycles, loadPlans, loadLogs, loadHarvests, loadSales, loadDocuments, loadContracts,
+    subjects, farms, cycles, plans, logs, costAdjustments, harvests, sales, invoices, documents, contracts, traceResult, loading, errors,
+    loadSubjects, loadFarms, loadCycles, loadPlans, loadLogs, loadCostAdjustments, loadHarvests, loadSales, loadInvoices, loadDocuments, loadContracts,
     loadOrganization, loadProduction, loadTraceability, loadCompliance,
     createSubject, updateSubjectStatus, createFarm, updateFarmStatus,
-    createCycle, updateCycleStatus, createPlan, updatePlanStatus, createLog,
-    createHarvest, updateHarvestQuality, createSale, updateSaleStatus, queryTrace,
+    createCycle, updateCycleStatus, createPlan, updatePlanStatus, createLog, createCostAdjustment,
+    createHarvest, updateHarvestQuality, createSale, updateSaleStatus, createInvoice, updateInvoice, updateInvoiceStatus, queryTrace,
     createDocument, createContract, updateContractStatus, reset,
   }
 })

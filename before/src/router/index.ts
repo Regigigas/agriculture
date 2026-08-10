@@ -1,6 +1,7 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import AppLayout from '@/components/AppLayout.vue'
+import { useTabsStore } from '@/stores/tabs'
 
 const router = createRouter({
   history: createWebHashHistory(),
@@ -12,7 +13,7 @@ const router = createRouter({
       meta: { requiresAuth: true },
       children: [
         { path: '', redirect: '/dashboard' },
-        { path: 'dashboard', name: 'dashboard', component: () => import('@/views/DashboardView.vue'), meta: { title: '农业驾驶舱' } },
+        { path: 'dashboard', name: 'dashboard', component: () => import('@/views/DashboardView.vue'), meta: { title: '农业驾驶舱', affix: true } },
         { path: 'agronomy-decision', name: 'agronomy-decision', component: () => import('@/views/AgronomyDecisionView.vue'), meta: { title: '农情决策中心' } },
         { path: 'operations', name: 'operations', component: () => import('@/views/OperationsCenterView.vue'), meta: { title: '运营风险中心', adminOnly: true } },
         { path: 'data-security', name: 'data-security', component: () => import('@/views/OperationsCenterView.vue'), meta: { title: '本地备份与同步', adminOnly: true } },
@@ -29,6 +30,8 @@ const router = createRouter({
         { path: 'inventory', name: 'inventory', component: () => import('@/views/InventoryView.vue'), meta: { title: '农资库存' } },
         { path: 'purchases', name: 'purchases', component: () => import('@/views/PurchasesView.vue'), meta: { title: '采购管理' } },
         { path: 'traceability', name: 'traceability', component: () => import('@/views/TraceabilityView.vue'), meta: { title: '采收销售与追溯' } },
+        { path: 'profit', name: 'profit', component: () => import('@/views/ProfitView.vue'), meta: { title: '利润核算' } },
+        { path: 'invoices', name: 'invoices', component: () => import('@/views/InvoicesView.vue'), meta: { title: '发票管理' } },
         { path: 'compliance', name: 'compliance', component: () => import('@/views/ComplianceView.vue'), meta: { title: '合同与合规档案' } },
         { path: 'connections', name: 'connections', component: () => import('@/views/ConnectionView.vue'), meta: { title: '连接中心', adminOnly: true } },
         { path: 'update', name: 'update', component: () => import('@/views/UpdateView.vue'), meta: { title: '软件更新', adminOnly: true } },
@@ -46,6 +49,10 @@ router.beforeEach(async (to) => {
   if (to.meta.adminOnly && auth.user?.role !== 'admin') return { name: 'dashboard' }
   if (to.meta.guest && auth.isAuthenticated) return { name: 'dashboard' }
   document.title = `${String(to.meta.title || '登录')} - 丰域农业`
+})
+
+router.afterEach((to) => {
+  useTabsStore().add(to)
 })
 
 export default router

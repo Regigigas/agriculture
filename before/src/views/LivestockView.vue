@@ -15,7 +15,8 @@ const message = useMessage()
 const modal = ref<'barn' | 'batch' | 'feeding' | 'health' | 'exit' | ''>('')
 const selectedBarnId = ref('')
 const activeTab = ref('barns')
-const showScene = ref(true)
+const scenePreferenceKey = 'fengyu:livestock:show-3d-scene'
+const showScene = ref(localStorage.getItem(scenePreferenceKey) !== 'false')
 const batchKeyword = ref('')
 const batchStatus = ref<string | null>(null)
 const batchBarnId = ref<string | null>(null)
@@ -66,6 +67,11 @@ function open(type: typeof modal.value) {
 function selectBarn(barnId: string) {
   selectedBarnId.value = barnId
   batchBarnId.value = barnId
+}
+
+function toggleScene() {
+  showScene.value = !showScene.value
+  localStorage.setItem(scenePreferenceKey, String(showScene.value))
 }
 
 function goTo(tab: string, action?: typeof modal.value) {
@@ -126,7 +132,7 @@ onMounted(async () => {
 
 <template>
   <page-header title="畜牧养殖中心" description="圈舍、存栏、饲喂、防疫、出栏与追溯的一体化管理">
-    <n-button secondary @click="showScene = !showScene">{{ showScene ? '收起 3D' : '打开 3D 牧场' }}</n-button>
+    <n-button secondary @click="toggleScene">{{ showScene ? '收起 3D' : '打开 3D 牧场' }}</n-button>
     <n-button secondary @click="open('feeding')">登记饲喂</n-button>
     <n-button secondary @click="open('health')">健康防疫</n-button>
     <n-button type="primary" @click="open('batch')"><template #icon><Plus /></template>批次入场</n-button>

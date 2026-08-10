@@ -1,17 +1,20 @@
 import { HttpException, HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { AgricultureService } from './agriculture.service';
+import { assertIntegerCents, multiplyCents } from './money';
 import { LocalDatabase } from './local-database';
 import { Field } from './types';
 import {
   ActiveStatus,
   BusinessSubject,
   ComplianceDocument,
+  CostAdjustment,
   CropCycle,
   CropCycleStatus,
   Farm,
   FarmContract,
   HarvestBatch,
+  Invoice,
   OperationLog,
   OperationType,
   ProductionPlan,
@@ -53,6 +56,8 @@ export class ProductionService {
     { id: 'operation-003', cycleId: 'cycle-002', planId: null, fieldId: 'field-003', inventoryItemId: null, operationType: 'irrigation', occurredAt: iso('2026-08-02T06:30:00+08:00'), executor: '赵强', result: '完成分区灌溉 2.5 小时', laborHours: 1, cost: 460, materialName: '灌溉水', materialQuantity: 68, materialUnit: 'm³', weather: '多云', notes: '', createdAt: iso('2026-08-02T09:10:00+08:00') },
   ];
 
+  private costAdjustments: CostAdjustment[] = [];
+
   private harvestBatches: HarvestBatch[] = [
     { id: 'harvest-001', batchCode: 'HB-2026-001', traceCode: 'TRACE-2026-WHEAT-001', cycleId: 'cycle-003', fieldId: 'field-001', product: '冬小麦', grade: '一等', quantity: 25780, unit: 'kg', harvestedAt: '2026-06-09', warehouse: '成品仓 W-01', qualityStatus: 'passed', inspector: '陈静', notes: '水分与容重检测合格', createdAt: iso('2026-06-09'), updatedAt: iso('2026-06-10') },
   ];
@@ -60,6 +65,8 @@ export class ProductionService {
   private salesOrders: SalesOrder[] = [
     { id: 'sale-001', orderNo: 'SO-2026-001', harvestBatchId: 'harvest-001', customer: '焦作粮食储备库', quantity: 18000, unit: 'kg', unitPrice: 2.64, amount: 47520, soldAt: '2026-06-15', paymentStatus: 'paid', deliveryStatus: 'delivered', notes: '首批订单已完成交付', createdAt: iso('2026-06-12'), updatedAt: iso('2026-06-18') },
   ];
+
+  private invoices: Invoice[] = [];
 
   private documents: ComplianceDocument[] = [
     { id: 'document-001', subjectId: 'subject-001', farmId: 'farm-001', fieldId: null, documentType: 'land', name: '北区土地经营权材料', documentNo: 'TD-2025-018', issueDate: '2025-09-01', expiryDate: '2029-08-31', status: 'valid', custodian: '陈静', filePath: '', notes: '纸质原件存档案柜 A-02', createdAt: iso('2025-09-01'), updatedAt: iso('2025-09-01') },
@@ -81,13 +88,15 @@ export class ProductionService {
   reloadFromDatabase(): void {
     this.subjects = this.database.loadCollection('business_subjects', this.subjects);
     this.farms = this.database.loadCollection('farms', this.farms);
-    this.cycles = this.database.loadCollection('crop_cycles', this.cycles);
-    this.plans = this.database.loadCollection('production_plans', this.plans);
-    this.operationLogs = this.database.loadCollection('operation_logs', this.operationLogs);
+    this.cycles = this.database.loadCollection('crop_cycles', this.cycles.map((item) => ({ ...item, budget: item.budget * 100 })));
+    this.plans = this.database.loadCollection('production_plans', this.plans.map((item) => ({ ...item, plannedCost: item.plannedCost * 100 })));
+    this.operationLogs = this.database.loadCollection('operation_logs', this.operationLogs.map((item) => ({ ...item, cost: item.cost * 100 })));
+    this.costAdjustments = this.database.loadCollection('cost_adjustments', this.costAdjustments);
     this.harvestBatches = this.database.loadCollection('harvest_batches', this.harvestBatches);
-    this.salesOrders = this.database.loadCollection('sales_orders', this.salesOrders);
+    this.salesOrders = this.database.loadCollection('sales_orders', this.salesOrders.map((item) => ({ ...item, unitPrice: Math.round(item.unitPrice * 100), amount: Math.round(item.amount * 100) })));
+    this.invoices = this.database.loadCollection('invoices', this.invoices);
     this.documents = this.database.loadCollection('compliance_documents', this.documents);
-    this.contracts = this.database.loadCollection('farm_contracts', this.contracts);
+    this.contracts = this.database.loadCollection('farm_contracts', this.contracts.map((item) => ({ ...item, amount: item.amount * 100 })));
     this.repairUprootedFieldState();
   }
 
@@ -113,8 +122,85 @@ export class ProductionService {
   getCycles(): CropCycle[] { return [...this.cycles].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)); }
   getPlans(): ProductionPlan[] { return [...this.plans].sort((a, b) => a.plannedDate.localeCompare(b.plannedDate)); }
   getOperationLogs(): OperationLog[] { return [...this.operationLogs].sort((a, b) => b.occurredAt.localeCompare(a.occurredAt)); }
+  getCostAdjustments(): CostAdjustment[] { return [...this.costAdjustments].sort((a, b) => b.createdAt.localeCompare(a.createdAt)); }
   getHarvestBatches(): HarvestBatch[] { return [...this.harvestBatches].sort((a, b) => b.harvestedAt.localeCompare(a.harvestedAt)); }
   getSalesOrders(): SalesOrder[] { return [...this.salesOrders].sort((a, b) => b.soldAt.localeCompare(a.soldAt)); }
+  getInvoices(): Invoice[] { return [...this.invoices].sort((a, b) => b.createdAt.localeCompare(a.createdAt)); }
+
+  createInvoice(body: unknown): Invoice {
+    const input = this.objectBody(body);
+    const sourceType = this.enumValue<Invoice['sourceType']>(input, 'sourceType', ['sales_order', 'purchase']);
+    const sourceId = this.required(input, 'sourceId', 100);
+    const source = sourceType === 'sales_order'
+      ? this.salesOrders.find((item) => item.id === sourceId)
+      : this.agriculture.getPurchases().find((item) => String(item.id) === sourceId);
+    if (!source) throw new NotFoundException(`业务单据 ${sourceId} 不存在`);
+    if (this.invoices.some((item) => item.sourceType === sourceType && item.sourceId === sourceId && item.status !== 'voided')) {
+      throw new HttpException('该业务单据已有未作废的发票记录', HttpStatus.CONFLICT);
+    }
+    const direction: Invoice['direction'] = sourceType === 'sales_order' ? 'output' : 'input';
+    const sourceNo = sourceType === 'sales_order' ? (source as SalesOrder).orderNo : (source as ReturnType<AgricultureService['getPurchases']>[number]).orderNo;
+    const counterparty = sourceType === 'sales_order' ? (source as SalesOrder).customer : (source as ReturnType<AgricultureService['getPurchases']>[number]).supplier;
+    const amount = source.amount;
+    const now = new Date().toISOString();
+    let invoice!: Invoice;
+    this.database.transaction(() => {
+      const sequence = this.nextSequence('invoice_sequence', this.invoices.length);
+      invoice = {
+        id: randomUUID(), applicationNo: `FP-${new Date().getFullYear()}-${String(sequence).padStart(4, '0')}`,
+        invoiceNo: '', direction, sourceType, sourceId, sourceNo, counterparty,
+        title: this.required(input, 'title', 200), taxNumber: this.optional(input, 'taxNumber', 50), amount,
+        status: 'pending', applicant: this.required(input, 'applicant', 50), issuedAt: null,
+        notes: this.optional(input, 'notes', 500), createdAt: now, updatedAt: now,
+      };
+      this.database.put('invoices', invoice);
+      this.database.appendAudit('invoice', invoice.id, 'create', `${invoice.applicationNo} ${sourceNo}`);
+    });
+    this.invoices.unshift(invoice);
+    return invoice;
+  }
+
+  updateInvoice(id: string, body: unknown): Invoice {
+    const invoice = this.invoices.find((item) => item.id === id);
+    if (!invoice) throw new NotFoundException(`发票 ${id} 不存在`);
+    if (invoice.status !== 'pending') throw new HttpException('只有待处理的发票申请可以编辑', HttpStatus.CONFLICT);
+    const input = this.objectBody(body);
+    const updated: Invoice = {
+      ...invoice,
+      title: this.required(input, 'title', 200),
+      taxNumber: this.optional(input, 'taxNumber', 50),
+      applicant: this.required(input, 'applicant', 50),
+      notes: this.optional(input, 'notes', 500),
+      updatedAt: new Date().toISOString(),
+    };
+    this.database.transaction(() => {
+      this.database.put('invoices', updated);
+      this.database.appendAudit('invoice', id, 'update', `${updated.applicationNo} ${updated.title}`);
+    });
+    Object.assign(invoice, updated);
+    return invoice;
+  }
+
+  updateInvoiceStatus(id: string, body: unknown): Invoice {
+    const invoice = this.invoices.find((item) => item.id === id);
+    if (!invoice) throw new NotFoundException(`发票 ${id} 不存在`);
+    const input = this.objectBody(body);
+    const status = this.enumValue<Invoice['status']>(input, 'status', ['issued', 'voided']);
+    if (invoice.status === 'voided') throw new HttpException('已作废发票不能再次变更', HttpStatus.CONFLICT);
+    if (invoice.status === 'issued' && status === 'issued') throw new HttpException('该发票已经登记', HttpStatus.CONFLICT);
+    const invoiceNo = status === 'issued' ? this.required(input, 'invoiceNo', 100) : invoice.invoiceNo;
+    if (status === 'issued' && this.invoices.some((item) => item.id !== id && item.invoiceNo === invoiceNo && item.status !== 'voided')) {
+      throw new HttpException('发票号码已存在', HttpStatus.CONFLICT);
+    }
+    const now = new Date().toISOString();
+    const updated = { ...invoice, status, invoiceNo, issuedAt: status === 'issued' ? this.date(input, 'issuedAt') : invoice.issuedAt, updatedAt: now };
+    this.database.transaction(() => {
+      this.database.put('invoices', updated);
+      this.database.appendAudit('invoice', id, status, `${updated.applicationNo} ${invoiceNo}`);
+    });
+    Object.assign(invoice, updated);
+    return invoice;
+  }
 
   getDocuments(): ComplianceDocument[] {
     const today = this.localDateKey();
@@ -253,7 +339,7 @@ export class ProductionService {
         plannedStart, plannedHarvest,
         actualStart: null, actualHarvest: null,
         targetYield: this.number(input, 'targetYield', 0, 100000000),
-        budget: this.number(input, 'budget', 0, 1000000000),
+        budget: assertIntegerCents(this.number(input, 'budget', 0, 100000000000), 'budget'),
         manager: this.required(input, 'manager', 40),
         status: 'planned',
         notes: this.optional(input, 'notes', 800),
@@ -357,7 +443,7 @@ export class ProductionService {
       operationType: this.operationType(input),
       plannedDate: this.date(input, 'plannedDate'),
       assignee: this.required(input, 'assignee', 40),
-      plannedCost: this.number(input, 'plannedCost', 0, 100000000),
+      plannedCost: assertIntegerCents(this.number(input, 'plannedCost', 0, 10000000000), 'plannedCost'),
       plannedMaterial: this.optional(input, 'plannedMaterial', 200),
       status: 'planned', notes: this.optional(input, 'notes', 500),
       createdAt: now, updatedAt: now, completedAt: null,
@@ -422,7 +508,7 @@ export class ProductionService {
       executor: this.required(input, 'executor', 40),
       result: this.required(input, 'result', 800),
       laborHours: this.number(input, 'laborHours', 0, 10000),
-      cost: this.number(input, 'cost', 0, 100000000),
+      cost: assertIntegerCents(this.number(input, 'cost', 0, 10000000000), 'cost'),
       materialName: inventoryItem?.name || '',
       materialQuantity,
       materialUnit: inventoryItem?.unit || '',
@@ -451,6 +537,32 @@ export class ProductionService {
     this.operationLogs.unshift(log);
     if (plan && updatedPlan) Object.assign(plan, updatedPlan);
     return log;
+  }
+
+  createCostAdjustment(body: unknown, actor: string): CostAdjustment {
+    const input = this.objectBody(body);
+    const cycleId = this.required(input, 'cycleId', 100);
+    const cycle = this.requireCycle(cycleId);
+    if (cycle.status === 'cancelled') throw new HttpException('已取消种植季不能补录或冲正成本', HttpStatus.CONFLICT);
+    const type = this.enumValue<CostAdjustment['type']>(input, 'type', ['supplement', 'reversal']);
+    const amount = assertIntegerCents(this.number(input, 'amount', 1, 100000000000), 'amount');
+    const recordedCost = this.operationLogs.filter((item) => item.cycleId === cycleId).reduce((sum, item) => sum + item.cost, 0)
+      + this.costAdjustments.filter((item) => item.cycleId === cycleId).reduce((sum, item) => sum + (item.type === 'supplement' ? item.amount : -item.amount), 0);
+    if (type === 'reversal' && amount > recordedCost) throw new HttpException(`冲正金额不能超过当前过程成本 ${recordedCost}`, HttpStatus.CONFLICT);
+    const evidenceNo = this.required(input, 'evidenceNo', 100);
+    const reason = this.required(input, 'reason', 300);
+    if (reason.length < 4) throw new HttpException('补录或冲正原因至少填写 4 个字符', HttpStatus.BAD_REQUEST);
+    const occurredAt = this.date(input, 'occurredAt');
+    const cycleStartDate = cycle.actualStart ? this.localDateTimeKey(cycle.actualStart) : cycle.plannedStart;
+    if (occurredAt < cycleStartDate) throw new HttpException('凭证日期不能早于种植季开始日期', HttpStatus.BAD_REQUEST);
+    if (occurredAt > this.localDateKey()) throw new HttpException('凭证日期不能晚于当前日期', HttpStatus.BAD_REQUEST);
+    const adjustment: CostAdjustment = { id: randomUUID(), cycleId, type, amount, evidenceNo, reason, operator: actor, occurredAt, createdAt: new Date().toISOString() };
+    this.database.transaction(() => {
+      this.database.put('cost_adjustments', adjustment);
+      this.database.appendAudit('cost_adjustment', adjustment.id, type, `${cycle.code}；${amount}；原因：${reason}`, actor);
+    });
+    this.costAdjustments.unshift(adjustment);
+    return adjustment;
   }
 
   createHarvestBatch(body: unknown): HarvestBatch {
@@ -512,7 +624,19 @@ export class ProductionService {
     const soldUnits = this.salesOrders.filter((sale) => sale.harvestBatchId === harvestBatchId).reduce((sum, sale) => sum + this.quantityUnits(sale.quantity), 0);
     const availableUnits = this.quantityUnits(batch.quantity) - soldUnits;
     if (this.quantityUnits(quantity) > availableUnits) throw new HttpException(`可销售余量仅为 ${availableUnits / 10000} ${batch.unit}`, HttpStatus.CONFLICT);
-    const unitPrice = this.number(input, 'unitPrice', 0, 10000000);
+    const unitPrice = assertIntegerCents(this.number(input, 'unitPrice', 0, 1000000000), 'unitPrice');
+    const amount = multiplyCents(quantity, unitPrice);
+    const cycle = this.requireCycle(batch.cycleId);
+    const cycleBatchIds = new Set(this.harvestBatches.filter((item) => item.cycleId === cycle.id).map((item) => item.id));
+    const adjustmentCost = this.costAdjustments.filter((item) => item.cycleId === cycle.id).reduce((sum, item) => sum + (item.type === 'supplement' ? item.amount : -item.amount), 0);
+    const processCost = this.operationLogs.filter((item) => item.cycleId === cycle.id).reduce((sum, item) => sum + item.cost, 0) + adjustmentCost;
+    const previousRevenue = this.salesOrders.filter((item) => cycleBatchIds.has(item.harvestBatchId)).reduce((sum, item) => sum + item.amount, 0);
+    const cumulativeRevenue = previousRevenue + amount;
+    const actualProfit = cumulativeRevenue - cycle.budget - processCost;
+    const cycleSellableQuantity = this.harvestBatches.filter((item) => item.cycleId === cycle.id && item.qualityStatus === 'passed').reduce((sum, item) => sum + item.quantity, 0);
+    const previouslySoldQuantity = this.salesOrders.filter((item) => cycleBatchIds.has(item.harvestBatchId)).reduce((sum, item) => sum + item.quantity, 0);
+    const remainingQuantity = Math.max(0, cycleSellableQuantity - previouslySoldQuantity - quantity);
+    const projectedProfit = cumulativeRevenue + multiplyCents(remainingQuantity, unitPrice) - cycle.budget - processCost;
     const soldAt = this.date(input, 'soldAt');
     if (soldAt < batch.harvestedAt) throw new HttpException('销售日期不能早于采收日期', HttpStatus.BAD_REQUEST);
     if (soldAt > this.localDateKey()) throw new HttpException('销售日期不能晚于当前日期', HttpStatus.BAD_REQUEST);
@@ -523,7 +647,7 @@ export class ProductionService {
       sale = {
         id: randomUUID(), orderNo: `SO-${new Date().getFullYear()}-${String(sequence).padStart(3, '0')}`,
         harvestBatchId, customer: this.required(input, 'customer', 100), quantity, unit: batch.unit,
-        unitPrice, amount: Number((quantity * unitPrice).toFixed(2)), soldAt,
+        unitPrice, amount, initialCost: cycle.budget, processCost, cumulativeRevenue, estimatedProfit: actualProfit, actualProfit, projectedProfit, soldAt,
         paymentStatus: 'unpaid', deliveryStatus: 'pending', notes: this.optional(input, 'notes', 500),
         createdAt: now, updatedAt: now,
       };
@@ -614,7 +738,7 @@ export class ProductionService {
       contractType: this.enumValue<FarmContract['contractType']>(input, 'contractType', ['land_lease', 'purchase', 'outsource', 'sales', 'insurance', 'other']),
       contractNo: this.required(input, 'contractNo', 80), title: this.required(input, 'title', 120),
       counterparty: this.required(input, 'counterparty', 120), startDate, endDate,
-      amount: this.number(input, 'amount', 0, 10000000000), status: 'draft',
+      amount: assertIntegerCents(this.number(input, 'amount', 0, 1000000000000), 'amount'), status: 'draft',
       reminderDays: this.number(input, 'reminderDays', 1, 365), filePath: this.optional(input, 'filePath', 500),
       notes: this.optional(input, 'notes', 500), createdAt: now, updatedAt: now,
     };

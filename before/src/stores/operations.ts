@@ -5,7 +5,7 @@ import type { AuditLog, BackupInfo, IntegrityResult, LocalSyncResult, Operations
 
 const emptySummary = (): OperationsSummary => ({
   activeSubjects: 0, activeFarms: 0, activeCycles: 0, pendingPlans: 0,
-  plannedBudget: 0, actualCost: 0, harvestQuantity: 0, salesRevenue: 0,
+  plannedBudget: 0, actualCost: 0, harvestQuantity: 0, salesRevenue: 0, realizedProfit: 0, projectedProfit: 0,
   receivables: 0, criticalRisks: 0, openRisks: 0,
 })
 

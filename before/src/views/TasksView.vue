@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useDialog, useMessage, type FormInst, type FormRules } from 'naive-ui'
-import { Check, Play, Plus, Search } from '@/icons/iconpark'
+import { CalendarDays, Check, Clock3, Play, Plus, Search, TriangleAlert } from '@/icons/iconpark'
 import { useFarmStore } from '@/stores/farm'
+import { useAuthStore } from '@/stores/auth'
 import type { CreateTaskInput, FarmTask, TaskPriority, TaskStatus } from '@/types'
 import PageHeader from '@/components/PageHeader.vue'
 import StatePanel from '@/components/StatePanel.vue'
@@ -10,12 +11,14 @@ import TableActions from '@/components/TableActions.vue'
 import type { TableAction } from '@/components/table-actions'
 
 const farm = useFarmStore()
+const auth = useAuthStore()
 const message = useMessage()
 const dialog = useDialog()
 const showModal = ref(false)
 const formRef = ref<FormInst | null>(null)
 const keyword = ref('')
 const status = ref<string | null>(null)
+const scope = ref<'all' | 'overdue' | 'today' | 'upcoming' | 'completed'>('all')
 const form = reactive<CreateTaskInput>({ title: '', dueDate: '', priority: 'medium', description: '', assignee: '', fieldId: '' })
 const rules: FormRules = {
   title: { required: true, message: '请输入任务名称', trigger: 'blur' },
@@ -24,12 +27,24 @@ const rules: FormRules = {
   dueDate: { required: true, message: '请选择截止日期', trigger: 'change' },
 }
 const fieldName = (fieldId: string | number) => farm.fields.find((field) => field.id === fieldId)?.name || '-'
-const filtered = computed(() => farm.tasks.filter((task) => (!status.value || task.status === status.value) && (!keyword.value || `${task.title}${fieldName(task.fieldId)}${task.assignee}`.toLowerCase().includes(keyword.value.toLowerCase()))))
+const today = () => new Date().toLocaleDateString('en-CA')
+const isOverdue = (task: FarmTask) => task.status !== 'completed' && task.dueDate < today()
+const isToday = (task: FarmTask) => task.status !== 'completed' && task.dueDate === today()
+const scopeMatches = (task: FarmTask) => scope.value === 'overdue' ? isOverdue(task) : scope.value === 'today' ? isToday(task) : scope.value === 'upcoming' ? task.status !== 'completed' && task.dueDate > today() : scope.value === 'completed' ? task.status === 'completed' : true
+const priorityOrder: Record<TaskPriority, number> = { high: 0, medium: 1, low: 2 }
+const filtered = computed(() => farm.tasks.filter((task) => scopeMatches(task) && (!status.value || task.status === status.value) && (!keyword.value || `${task.title}${fieldName(task.fieldId)}${task.assignee}`.toLowerCase().includes(keyword.value.toLowerCase()))).sort((a, b) => {
+  if (a.status === 'completed' && b.status !== 'completed') return 1
+  if (a.status !== 'completed' && b.status === 'completed') return -1
+  return a.dueDate.localeCompare(b.dueDate) || priorityOrder[a.priority] - priorityOrder[b.priority]
+}))
+const taskCounts = computed(() => ({ all: farm.tasks.filter((task) => task.status !== 'completed').length, overdue: farm.tasks.filter(isOverdue).length, today: farm.tasks.filter(isToday).length, upcoming: farm.tasks.filter((task) => task.status !== 'completed' && task.dueDate > today()).length, completed: farm.tasks.filter((task) => task.status === 'completed').length }))
 const fieldOptions = computed(() => farm.fields.map((field) => ({ label: field.name, value: field.id })))
 const statusMap: Record<TaskStatus, { label: string; type: 'warning' | 'info' | 'success' }> = { pending: { label: '待处理', type: 'warning' }, in_progress: { label: '进行中', type: 'info' }, completed: { label: '已完成', type: 'success' } }
 const priorityMap: Record<TaskPriority, string> = { low: '普通', medium: '重要', high: '紧急' }
 
-function resetForm() { Object.assign(form, { title: '', dueDate: '', priority: 'medium', description: '', assignee: '', fieldId: '' }) }
+function resetForm() { Object.assign(form, { title: '', dueDate: today(), priority: 'medium', description: '', assignee: auth.user?.name || auth.user?.username || '', fieldId: '' }) }
+function openCreate() { resetForm(); showModal.value = true }
+function dueLabel(task: FarmTask) { return task.status === 'completed' ? task.dueDate : isOverdue(task) ? `逾期 · ${task.dueDate}` : isToday(task) ? '今天' : task.dueDate }
 async function create() {
   await formRef.value?.validate()
   try { await farm.createTask({ ...form }); showModal.value = false; resetForm(); message.success('任务已创建') } catch { message.error(farm.errors.taskMutation) }
@@ -46,13 +61,21 @@ function taskActions(task: FarmTask): TableAction[] {
   return [{ key: 'advance', label: task.status === 'pending' ? '开始' : '完工', icon: task.status === 'pending' ? Play : Check, type: 'primary', secondary: true, loading: farm.loading.taskMutation, onClick: () => advance(task) }]
 }
 onMounted(() => Promise.all([farm.loadTasks(), farm.loadFields()]).catch(() => undefined))
+watch(() => form.fieldId, (fieldId) => { const manager = farm.fields.find((field) => field.id === fieldId)?.manager; if (manager) form.assignee = manager })
 </script>
 
 <template>
-  <page-header title="生产任务" description="安排农事活动，跟踪执行进度与责任人员"><n-button type="primary" @click="showModal = true"><template #icon><Plus /></template>新建任务</n-button></page-header>
+  <page-header title="生产任务" description="按紧迫程度处理今日工作，完工后自动进入历史记录"><n-button type="primary" @click="openCreate"><template #icon><Plus /></template>新建任务</n-button></page-header>
+  <div class="task-scopes" role="tablist" aria-label="任务工作队列">
+    <button :class="{ active: scope === 'all' }" @click="scope = 'all'"><Clock3 /><span>待处理<strong>{{ taskCounts.all }}</strong></span></button>
+    <button :class="['danger', { active: scope === 'overdue' }]" @click="scope = 'overdue'"><TriangleAlert /><span>已逾期<strong>{{ taskCounts.overdue }}</strong></span></button>
+    <button :class="{ active: scope === 'today' }" @click="scope = 'today'"><CalendarDays /><span>今天到期<strong>{{ taskCounts.today }}</strong></span></button>
+    <button :class="{ active: scope === 'upcoming' }" @click="scope = 'upcoming'"><CalendarDays /><span>后续任务<strong>{{ taskCounts.upcoming }}</strong></span></button>
+    <button :class="{ active: scope === 'completed' }" @click="scope = 'completed'"><Check /><span>已完成<strong>{{ taskCounts.completed }}</strong></span></button>
+  </div>
   <div class="filter-bar"><n-input v-model:value="keyword" clearable placeholder="搜索任务、地块或负责人"><template #prefix><Search :size="17" /></template></n-input><n-select v-model:value="status" clearable placeholder="全部状态" :options="[{label:'待处理',value:'pending'},{label:'进行中',value:'in_progress'},{label:'已完成',value:'completed'}]" /></div>
   <state-panel :loading="farm.loading.tasks" :error="farm.errors.tasks" :empty="!filtered.length" empty-text="没有符合条件的任务" @retry="farm.loadTasks">
-    <div class="table-wrap action-table"><n-table :single-line="false"><thead><tr><th>任务</th><th>关联地块</th><th>负责人</th><th>截止日期</th><th>优先级</th><th>状态</th><th>操作</th></tr></thead><tbody><tr v-for="task in filtered" :key="task.id"><td><strong>{{ task.title }}</strong><small class="cell-detail">{{ task.description || '无补充说明' }}</small></td><td>{{ fieldName(task.fieldId) }}</td><td>{{ task.assignee }}</td><td>{{ task.dueDate }}</td><td><span :class="['priority', task.priority]">{{ priorityMap[task.priority] }}</span></td><td><n-tag size="small" :type="statusMap[task.status]?.type || 'default'">{{ statusMap[task.status]?.label || task.status }}</n-tag></td><td><table-actions :actions="taskActions(task)" empty-text="已归档" /></td></tr></tbody></n-table></div>
+    <div class="table-wrap action-table"><n-table :single-line="false"><thead><tr><th>任务</th><th>关联地块</th><th>负责人</th><th>截止日期</th><th>优先级</th><th>状态</th><th>操作</th></tr></thead><tbody><tr v-for="task in filtered" :key="task.id" :class="{ 'task-overdue-row': isOverdue(task) }"><td><strong>{{ task.title }}</strong><small class="cell-detail">{{ task.description || '无补充说明' }}</small></td><td>{{ fieldName(task.fieldId) }}</td><td>{{ task.assignee }}</td><td><span :class="{ 'due-overdue': isOverdue(task), 'due-today': isToday(task) }">{{ dueLabel(task) }}</span></td><td><span :class="['priority', task.priority]">{{ priorityMap[task.priority] }}</span></td><td><n-tag size="small" :type="statusMap[task.status]?.type || 'default'">{{ statusMap[task.status]?.label || task.status }}</n-tag></td><td><table-actions :actions="taskActions(task)" empty-text="已归档" /></td></tr></tbody></n-table></div>
   </state-panel>
   <n-modal v-model:show="showModal" preset="card" title="新建生产任务" class="form-modal" :bordered="false"><n-form ref="formRef" :model="form" :rules="rules" label-placement="top"><n-form-item label="任务名称" path="title"><n-input v-model:value="form.title" placeholder="例如：一号田块滴灌" /></n-form-item><div class="form-grid"><n-form-item label="关联地块" path="fieldId"><n-select v-model:value="form.fieldId" :options="fieldOptions" placeholder="选择地块" /></n-form-item><n-form-item label="负责人" path="assignee"><n-input v-model:value="form.assignee" placeholder="输入负责人" /></n-form-item><n-form-item label="截止日期" path="dueDate"><n-date-picker v-model:formatted-value="form.dueDate" value-format="yyyy-MM-dd" type="date" clearable /></n-form-item><n-form-item label="优先级"><n-select v-model:value="form.priority" :options="[{label:'普通',value:'low'},{label:'重要',value:'medium'},{label:'紧急',value:'high'}]" /></n-form-item></div><n-form-item label="任务说明"><n-input v-model:value="form.description" type="textarea" :rows="3" /></n-form-item><div class="modal-actions"><n-button @click="showModal = false">取消</n-button><n-button type="primary" :loading="farm.loading.taskMutation" @click="create">创建任务</n-button></div></n-form></n-modal>
 </template>

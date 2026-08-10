@@ -15,6 +15,7 @@ export const SYNC_COLLECTIONS = [
   'operation_logs',
   'harvest_batches',
   'sales_orders',
+  'invoices',
   'compliance_documents',
   'farm_contracts',
 ] as const;

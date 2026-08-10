@@ -8,10 +8,12 @@ import { Field, User } from './types';
 import {
   BusinessSubject,
   ComplianceDocument,
+  CostAdjustment,
   CropCycle,
   Farm,
   FarmContract,
   HarvestBatch,
+  Invoice,
   OperationLog,
   ProductionPlan,
   SalesOrder,
@@ -59,6 +61,8 @@ export class ProductionController {
 
   @Get('operation-logs') operationLogs(): OperationLog[] { return this.service.getOperationLogs(); }
   @Post('operation-logs') createOperationLog(@Body() body: unknown): OperationLog { return this.service.createOperationLog(body); }
+  @Get('cost-adjustments') costAdjustments(): CostAdjustment[] { return this.service.getCostAdjustments(); }
+  @Post('cost-adjustments') createCostAdjustment(@Body() body: unknown, @CurrentUser() user: User): CostAdjustment { return this.service.createCostAdjustment(body, user.name || user.username); }
 
   @Get('harvest-batches') harvestBatches(): HarvestBatch[] { return this.service.getHarvestBatches(); }
   @Post('harvest-batches') createHarvestBatch(@Body() body: unknown): HarvestBatch { return this.service.createHarvestBatch(body); }
@@ -67,6 +71,11 @@ export class ProductionController {
   @Get('sales-orders') salesOrders(): SalesOrder[] { return this.service.getSalesOrders(); }
   @Post('sales-orders') createSalesOrder(@Body() body: unknown): SalesOrder { return this.service.createSalesOrder(body); }
   @Patch('sales-orders/:id/status') updateSalesStatus(@Param('id') id: string, @Body() body: unknown): SalesOrder { return this.service.updateSalesStatus(id, body); }
+
+  @Get('invoices') invoices(): Invoice[] { return this.service.getInvoices(); }
+  @Post('invoices') createInvoice(@Body() body: unknown): Invoice { return this.service.createInvoice(body); }
+  @Patch('invoices/:id') updateInvoice(@Param('id') id: string, @Body() body: unknown): Invoice { return this.service.updateInvoice(id, body); }
+  @Patch('invoices/:id/status') updateInvoiceStatus(@Param('id') id: string, @Body() body: unknown): Invoice { return this.service.updateInvoiceStatus(id, body); }
 
   @Get('trace/:code') trace(@Param('code') code: string): TraceResult { return this.service.getTrace(code); }
 

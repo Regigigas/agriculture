@@ -3,11 +3,12 @@ import { computed, h, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useMessage } from 'naive-ui'
 import { useRoute, useRouter } from 'vue-router'
 import { NAvatar, NButton, NDrawer, NDrawerContent, NDropdown, NIcon, NMenu, type MenuOption } from 'naive-ui'
-import { AlertTriangle, Beaker, Bell, Bluetooth, Boxes, Bug, Building2, ClipboardList, CloudSun, DatabaseBackup, Download, FileCheck2, Gauge, Layers3, LogOut, Menu, MessageCircle, MessageSquareWarning, PackageSearch, RadioTower, RefreshCw, ShieldAlert, ShoppingCart, Sprout, UserRound, Warehouse } from '@/icons/iconpark'
+import { AlertTriangle, Beaker, Bell, Bluetooth, Boxes, Bug, Building2, CircleDollarSign, ClipboardList, CloudSun, DatabaseBackup, Download, FileCheck2, FileClock, Gauge, Layers3, LogOut, Menu, MessageCircle, MessageSquareWarning, PackageSearch, RadioTower, RefreshCw, ShieldAlert, ShoppingCart, Sprout, UserRound, Warehouse } from '@/icons/iconpark'
 import { request } from '@/api/client'
 import { useAuthStore } from '@/stores/auth'
 import { useFarmStore } from '@/stores/farm'
 import { useOperationsStore } from '@/stores/operations'
+import TabsView from '@/components/TabsView.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -47,6 +48,8 @@ const menuOptions = computed<MenuOption[]>(() => [
     { label: '采购管理', key: '/purchases', icon: icon(ShoppingCart) },
     { label: '农资库存', key: '/inventory', icon: icon(Boxes) },
     { label: '采收销售与追溯', key: '/traceability', icon: icon(PackageSearch) },
+    { label: '利润核算', key: '/profit', icon: icon(CircleDollarSign) },
+    { label: '发票管理', key: '/invoices', icon: icon(FileClock) },
     { label: '合同与合规档案', key: '/compliance', icon: icon(FileCheck2) },
   ] },
   { type: 'group', label: '设备与连接', key: 'device-group', children: [
@@ -176,6 +179,7 @@ onBeforeUnmount(() => {
           </n-dropdown>
         </div>
       </header>
+      <TabsView />
       <main class="content"><router-view /></main>
     </div>
 

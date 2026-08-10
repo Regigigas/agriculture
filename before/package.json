@@ -28,6 +28,7 @@
     "@nestjs/common": "^11.1.28",
     "@nestjs/core": "^11.1.28",
     "@nestjs/platform-express": "^11.1.28",
+    "decimal.js": "^10.6.0",
     "echarts": "^6.1.0",
     "electron-updater": "^6.6.2",
     "naive-ui": "^2.40.1",
