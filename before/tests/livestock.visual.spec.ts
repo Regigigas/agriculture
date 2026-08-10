@@ -9,8 +9,11 @@ test('畜牧养殖中心展示完整业务闭环并可打开新增表单', async
   await page.goto('/#/livestock')
 
   await expect(page.getByRole('heading', { name: '畜牧养殖中心', level: 2 })).toBeVisible()
-  await expect(page.getByText('东区育肥牛舍', { exact: true })).toBeVisible()
+  await expect(page.locator('.barn-card').getByText('东区育肥牛舍', { exact: true })).toBeVisible()
   await expect(page.getByText('当前存栏', { exact: true })).toBeVisible()
+  await expect(page.getByTestId('livestock-3d-scene')).toBeVisible()
+  await expect(page.getByText('3D 数字牧场', { exact: true })).toBeVisible()
+  await expect(page.getByText('负载率', { exact: true })).toBeVisible()
 
   await page.locator('.n-tabs-tab').filter({ hasText: '存栏批次' }).click()
   await expect(page.getByText('NC-2026-03', { exact: true })).toBeVisible()

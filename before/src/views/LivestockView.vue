@@ -4,6 +4,7 @@ import { useMessage } from 'naive-ui'
 import { AlertTriangle, Boxes, ClipboardCheck, Plus, Sprout, Truck, Warehouse } from '@/icons/iconpark'
 import PageHeader from '@/components/PageHeader.vue'
 import StatePanel from '@/components/StatePanel.vue'
+import LivestockScene3D from '@/components/LivestockScene3D.vue'
 import { useLivestockStore } from '@/stores/livestock'
 import { useProductionStore } from '@/stores/production'
 import type { HealthRecordType, LivestockSpecies } from '@/types'
@@ -12,6 +13,7 @@ const livestock = useLivestockStore()
 const production = useProductionStore()
 const message = useMessage()
 const modal = ref<'barn' | 'batch' | 'feeding' | 'health' | 'exit' | ''>('')
+const selectedBarnId = ref('')
 const speciesLabels: Record<LivestockSpecies, string> = { cattle: '牛', pig: '猪', sheep: '羊', chicken: '鸡', duck: '鸭' }
 const healthLabels: Record<HealthRecordType, string> = { vaccination: '疫苗免疫', medication: '用药治疗', inspection: '检疫检查', disinfection: '环境消毒', mortality: '死亡记录' }
 const speciesOptions = Object.entries(speciesLabels).map(([value, label]) => ({ value, label }))
@@ -71,6 +73,8 @@ onMounted(() => Promise.allSettled([livestock.loadAll(), production.loadFarms()]
     <div><span class="domain-kpi-icon red"><AlertTriangle /></span><small>隔离/待办</small><strong>{{ livestock.summary.quarantineBatches + livestock.summary.healthDue }}</strong><em>批次与防疫事项</em></div>
     <div><span class="domain-kpi-icon"><Truck /></span><small>本月出栏</small><strong>{{ livestock.summary.exitedThisMonth }}</strong><em>头/只</em></div>
   </div>
+
+  <livestock-scene-3-d :barns="livestock.barns" :batches="livestock.batches" :selected-barn-id="selectedBarnId" @select="selectedBarnId = $event" />
 
   <state-panel :loading="livestock.loading.all" :error="livestock.errors.all" @retry="livestock.loadAll">
     <n-tabs type="line" animated>
