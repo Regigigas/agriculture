@@ -16,6 +16,7 @@
     "build": "npm run ensure:electron && npm run build:server && npm run build:web && electron-builder --win nsis --publish never",
     "pack": "npm run ensure:electron && npm run build:server && npm run build:web && electron-builder --dir --publish never",
     "test:visual": "playwright test tests/field-3d.visual.spec.ts",
+    "test:livestock": "playwright test tests/livestock.visual.spec.ts",
     "test:visual:app": "playwright test tests/app-field-3d.visual.spec.ts",
     "test:visual:all": "playwright test tests/field-3d.visual.spec.ts tests/app-field-3d.visual.spec.ts tests/data-and-chat.visual.spec.ts",
     "verify:sync": "npm --prefix ../after run build && npm --prefix server run build && node scripts/verify-sync.cjs",

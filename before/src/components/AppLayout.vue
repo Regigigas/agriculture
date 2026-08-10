@@ -3,7 +3,7 @@ import { computed, h, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useMessage } from 'naive-ui'
 import { useRoute, useRouter } from 'vue-router'
 import { NAvatar, NButton, NDrawer, NDrawerContent, NDropdown, NIcon, NMenu, type MenuOption } from 'naive-ui'
-import { AlertTriangle, Beaker, Bell, Bluetooth, Boxes, Bug, Building2, ClipboardList, CloudSun, DatabaseBackup, Download, FileCheck2, Gauge, Layers3, LogOut, Menu, MessageCircle, MessageSquareWarning, PackageSearch, RadioTower, ShieldAlert, ShoppingCart, Sprout, UserRound } from '@/icons/iconpark'
+import { AlertTriangle, Beaker, Bell, Bluetooth, Boxes, Bug, Building2, ClipboardList, CloudSun, DatabaseBackup, Download, FileCheck2, Gauge, Layers3, LogOut, Menu, MessageCircle, MessageSquareWarning, PackageSearch, RadioTower, ShieldAlert, ShoppingCart, Sprout, UserRound, Warehouse } from '@/icons/iconpark'
 import { request } from '@/api/client'
 import { useAuthStore } from '@/stores/auth'
 import { useFarmStore } from '@/stores/farm'
@@ -35,6 +35,7 @@ const menuOptions = computed<MenuOption[]>(() => [
     { label: '农田档案', key: '/fields', icon: icon(Sprout) },
     { label: '地块三维巡查', key: '/field-3d', icon: icon(Layers3) },
     { label: '农业对照试验', key: '/experiments', icon: icon(Beaker) },
+    { label: '畜牧养殖中心', key: '/livestock', icon: icon(Warehouse) },
     { label: '种植季与执行', key: '/production', icon: icon(Layers3) },
     { label: '生产任务', key: '/tasks', icon: icon(ClipboardList) },
     { label: '巡田问题', key: '/issues', icon: icon(Bug) },
