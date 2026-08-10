@@ -3,7 +3,7 @@ import { computed, h, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useMessage } from 'naive-ui'
 import { useRoute, useRouter } from 'vue-router'
 import { NAvatar, NButton, NDrawer, NDrawerContent, NDropdown, NIcon, NMenu, type MenuOption } from 'naive-ui'
-import { AlertTriangle, Beaker, Bell, Bluetooth, Boxes, Bug, Building2, ClipboardList, CloudSun, DatabaseBackup, Download, FileCheck2, Gauge, Layers3, LogOut, Menu, MessageCircle, MessageSquareWarning, PackageSearch, RadioTower, ShieldAlert, ShoppingCart, Sprout, UserRound, Warehouse } from '@/icons/iconpark'
+import { AlertTriangle, Beaker, Bell, Bluetooth, Boxes, Bug, Building2, ClipboardList, CloudSun, DatabaseBackup, Download, FileCheck2, Gauge, Layers3, LogOut, Menu, MessageCircle, MessageSquareWarning, PackageSearch, RadioTower, RefreshCw, ShieldAlert, ShoppingCart, Sprout, UserRound, Warehouse } from '@/icons/iconpark'
 import { request } from '@/api/client'
 import { useAuthStore } from '@/stores/auth'
 import { useFarmStore } from '@/stores/farm'
@@ -16,8 +16,11 @@ const farm = useFarmStore()
 const operations = useOperationsStore()
 const message = useMessage()
 const drawerVisible = ref(false)
+const notificationVisible = ref(false)
+const notificationLoading = ref(false)
 const serviceOnline = ref<boolean | null>(null)
 let healthTimer: ReturnType<typeof setInterval> | undefined
+let notificationTimer: ReturnType<typeof setInterval> | undefined
 
 const icon = (component: typeof Gauge) => () => h(NIcon, null, { default: () => h(component) })
 const menuOptions = computed<MenuOption[]>(() => [
@@ -70,6 +73,7 @@ const serviceText = computed(() => serviceOnline.value === null ? '正在检查�
 
 function navigate(key: string | number) {
   drawerVisible.value = false
+  notificationVisible.value = false
   router.push(String(key))
 }
 
@@ -98,6 +102,26 @@ async function loadShellData() {
   ])
 }
 
+async function refreshNotifications() {
+  if (notificationLoading.value) return
+  notificationLoading.value = true
+  try {
+    await Promise.allSettled([
+      farm.loadAlerts(),
+      farm.loadTasks(),
+      farm.loadInventory(),
+      farm.loadIssues(),
+      operations.loadRisks(),
+    ])
+  } finally {
+    notificationLoading.value = false
+  }
+}
+
+function refreshWhenVisible() {
+  if (document.visibilityState === 'visible') void refreshNotifications()
+}
+
 async function openCorrectionWindow() {
   try {
     await window.agricultureDesktop?.openCorrectionWindow(route.fullPath)
@@ -109,9 +133,13 @@ async function openCorrectionWindow() {
 onMounted(() => {
   loadShellData()
   healthTimer = setInterval(checkHealth, 30000)
+  notificationTimer = setInterval(refreshNotifications, 60000)
+  document.addEventListener('visibilitychange', refreshWhenVisible)
 })
 onBeforeUnmount(() => {
   if (healthTimer) clearInterval(healthTimer)
+  if (notificationTimer) clearInterval(notificationTimer)
+  document.removeEventListener('visibilitychange', refreshWhenVisible)
 })
 </script>
 
@@ -131,10 +159,10 @@ onBeforeUnmount(() => {
         </div>
         <div class="topbar-actions">
           <n-button quaternary circle title="打开纠错中心" aria-label="打开纠错中心" @click="openCorrectionWindow"><MessageSquareWarning :size="19" /></n-button>
-          <n-popover trigger="click" placement="bottom-end" :width="340">
+          <n-popover v-model:show="notificationVisible" trigger="click" placement="bottom-end" :width="340">
             <template #trigger><n-badge :value="notificationCount" :max="99" :show="notificationCount > 0"><n-button quaternary circle title="查看待办提醒" aria-label="查看待办提醒"><Bell :size="19" /></n-button></n-badge></template>
             <div class="notification-panel">
-              <div class="notification-heading"><strong>需要关注</strong><span>{{ notificationCount }} 项</span></div>
+              <div class="notification-heading"><strong>需要关注</strong><div><span>{{ notificationCount }} 项</span><n-button quaternary circle size="tiny" title="刷新待办" aria-label="刷新待办" :loading="notificationLoading" @click="refreshNotifications"><RefreshCw :size="15" /></n-button></div></div>
               <button v-if="activeAlerts.length" class="notification-row critical" @click="navigate('/devices')"><AlertTriangle /><span><strong>{{ activeAlerts.length }} 条设备告警</strong><small>查看传感器与终端异常</small></span></button>
               <button v-if="overdueTasks.length" class="notification-row warning" @click="navigate('/tasks')"><ClipboardList /><span><strong>{{ overdueTasks.length }} 项任务逾期</strong><small>重新安排负责人和进度</small></span></button>
               <button v-if="activeIssues.length" class="notification-row info" @click="navigate('/issues')"><Bug /><span><strong>{{ activeIssues.length }} 条巡田问题未关闭</strong><small>跟踪处理和复查结果</small></span></button>
