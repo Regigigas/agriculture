@@ -1,6 +1,6 @@
 {
   "name": "agriculture-demo-api",
-  "version": "1.0.0-beta.3",
+  "version": "1.0.0-beta.4",
   "private": true,
   "description": "NestJS agriculture cloud synchronization API",
   "license": "UNLICENSED",

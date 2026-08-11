@@ -1,6 +1,6 @@
 {
   "name": "fengyu-agriculture-desktop",
-  "version": "1.0.0-beta.3",
+  "version": "1.0.0-beta.4",
   "description": "支持离线、局域网与蓝牙接入的农业生产桌面系统",
   "author": "Fengyu Agriculture",
   "private": true,
